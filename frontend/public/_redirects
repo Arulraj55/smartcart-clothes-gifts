@@ -1,0 +1,3 @@
+/api/* https://smartcart-clothes-gifts.onrender.com/api/:splat 200
+/images/* https://smartcart-clothes-gifts.onrender.com/images/:splat 200
+/* /index.html 200
