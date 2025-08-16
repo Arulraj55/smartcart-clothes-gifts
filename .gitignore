@@ -1,0 +1,21 @@
+# Node
+node_modules
+npm-debug.log*
+yarn.lock
+package-lock.json
+
+# Env files
+backend/.env
+frontend/.env
+
+# Build output
+frontend/build
+backend/logs
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Optional: large cached images (use Render Disk in prod)
+backend/public/images/
