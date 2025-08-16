@@ -600,7 +600,7 @@ const AppContent = () => {
       }
     };
     fetchCart();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, API_BASE_URL]);
 
   const addToCart = async (product) => {
     if (!isAuthenticated) { setShowAuthModal(true); return; }
