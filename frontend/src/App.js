@@ -1,5 +1,4 @@
-﻿// SmartCart App
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import './index.css';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
