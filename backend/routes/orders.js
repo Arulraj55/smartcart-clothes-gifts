@@ -75,6 +75,23 @@ router.get('/my', auth, async (req, res) => {
 });
 
 // Get specific order
+// Cancel an order
+// PUT /api/orders/cancel/:id
+router.put('/cancel/:id', auth, async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.orderStatus === 'delivered' || order.orderStatus === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Order cannot be cancelled' });
+    }
+    order.orderStatus = 'cancelled';
+    await order.save();
+    res.json({ success: true, message: 'Order cancelled successfully', order });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ success: false, message: 'Failed to cancel order', error: error.message });
+  }
+});
 // GET /api/orders/:id
 router.get('/:id', auth, async (req, res) => {
   try {

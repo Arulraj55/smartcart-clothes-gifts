@@ -159,6 +159,10 @@ const OrderHistory = ({ user, onClose }) => {
         <div className="order-history-content">
           {selectedOrder ? (
             <div className="order-details">
+              {/* Delivery estimate message */}
+              <div style={{margin:'1.5rem 0',background:'linear-gradient(90deg,#f59e0b 0%,#fbbf24 100%)',color:'#374151',padding:'1rem',borderRadius:'12px',fontWeight:'bold',fontSize:'1.1rem',boxShadow:'0 2px 8px 0 rgba(251,191,36,0.10)'}}>
+                🚚 Your order will be delivered in <span style={{color:'#ef4444'}}>less than 7 days</span>.
+              </div>
               <button
                 className="back-button"
                 onClick={() => setSelectedOrder(null)}
@@ -274,10 +278,10 @@ const OrderHistory = ({ user, onClose }) => {
                           alert('Order cancelled successfully!');
                           setSelectedOrder({ ...selectedOrder, status: 'cancelled' });
                         } else {
-                          alert('Failed to cancel order.');
+                          alert('Failed to cancel order. Your order will be delivered in less than 7 days.');
                         }
                       } catch (err) {
-                        alert('Error cancelling order.');
+                        alert('Error cancelling order. Your order will be delivered in less than 7 days.');
                       }
                     }}
                   >
