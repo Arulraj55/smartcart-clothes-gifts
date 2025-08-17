@@ -61,7 +61,7 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  process.env.FRONTEND_URL
+  'https://glittery-conkies-6d48e0.netlify.app'
 ].filter(Boolean));
 
 const corsOptions = {
