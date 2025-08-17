@@ -159,10 +159,12 @@ const OrderHistory = ({ user, onClose }) => {
         <div className="order-history-content">
           {selectedOrder ? (
             <div className="order-details">
-              {/* Delivery estimate message */}
-              <div style={{margin:'1.5rem 0',background:'linear-gradient(90deg,#f59e0b 0%,#fbbf24 100%)',color:'#374151',padding:'1rem',borderRadius:'12px',fontWeight:'bold',fontSize:'1.1rem',boxShadow:'0 2px 8px 0 rgba(251,191,36,0.10)'}}>
-                🚚 Your order will be delivered in <span style={{color:'#ef4444'}}>less than 7 days</span>.
-              </div>
+              {/* Delivery estimate message - unique per order, hidden if cancelled */}
+              {selectedOrder.status !== 'cancelled' && (
+                <div style={{margin:'1.5rem 0',background:'linear-gradient(90deg,#f59e0b 0%,#fbbf24 100%)',color:'#374151',padding:'1rem',borderRadius:'12px',fontWeight:'bold',fontSize:'1.1rem',boxShadow:'0 2px 8px 0 rgba(251,191,36,0.10)'}}>
+                  🚚 Your order will be delivered in <span style={{color:'#ef4444'}}>{selectedOrder.deliveryDays || Math.floor(3 + (selectedOrder.id.charCodeAt(0) % 4))} days</span>.
+                </div>
+              )}
               <button
                 className="back-button"
                 onClick={() => setSelectedOrder(null)}
@@ -295,51 +297,60 @@ const OrderHistory = ({ user, onClose }) => {
                 <p>You have {orders.length} order{orders.length !== 1 ? 's' : ''}</p>
               </div>
 
-              {orders.map((order) => (
-                <div key={order.id} className="order-card" onClick={() => setSelectedOrder(order)}>
-                  <div className="order-header">
-                    <div className="order-info">
-                      <h3>Order #{order.id}</h3>
-                      <p className="order-date">{new Date(order.date).toLocaleDateString()}</p>
+              {orders.map((order) => {
+                // Unique delivery days per order (3-6 days)
+                const deliveryDays = order.status !== 'cancelled' ? (order.deliveryDays || Math.floor(3 + (order.id.charCodeAt(0) % 4))) : null;
+                return (
+                  <div key={order.id} className="order-card" onClick={() => setSelectedOrder(order)}>
+                    <div className="order-header">
+                      <div className="order-info">
+                        <h3>Order #{order.id}</h3>
+                        <p className="order-date">{new Date(order.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className="order-status">
+                        <span
+                          className="status-badge"
+                          style={{
+                            backgroundColor: getStatusColor(order.status),
+                            color: 'white',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '12px',
+                            fontSize: '0.8rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {getStatusIcon(order.status)} {order.status.toUpperCase()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="order-status">
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: getStatusColor(order.status),
-                          color: 'white',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '12px',
-                          fontSize: '0.8rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {getStatusIcon(order.status)} {order.status.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Short details only */}
-                  <div className="order-items">
-                    <div className="items-preview">
-                      <div className="item-preview" style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                        <div style={{fontSize:'0.9rem', color:'#374151'}}>
-                          {order.items.length} item{order.items.length!==1?'s':''}
-                        </div>
-                        <div style={{color:'#6b7280'}}>
-                          • Total ₹{order.total}
+                    {/* Short details only */}
+                    <div className="order-items">
+                      <div className="items-preview">
+                        <div className="item-preview" style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                          <div style={{fontSize:'0.9rem', color:'#374151'}}>
+                            {order.items.length} item{order.items.length!==1?'s':''}
+                          </div>
+                          <div style={{color:'#6b7280'}}>
+                            • Total ₹{order.total}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="order-footer">
-                    <div className="order-total">
-                      <strong>Total: ₹{order.total}</strong>
+                    {/* Delivery estimate in order list, hidden if cancelled */}
+                    {deliveryDays && (
+                      <div style={{margin:'1rem 0',background:'linear-gradient(90deg,#f59e0b 0%,#fbbf24 100%)',color:'#374151',padding:'0.75rem',borderRadius:'10px',fontWeight:'bold',fontSize:'1rem',boxShadow:'0 2px 8px 0 rgba(251,191,36,0.08)'}}>
+                        🚚 Delivered in <span style={{color:'#ef4444'}}>{deliveryDays} days</span>
+                      </div>
+                    )}
+                    <div className="order-footer">
+                      <div className="order-total">
+                        <strong>Total: ₹{order.total}</strong>
+                      </div>
+                      <button className="view-details-btn">View Details →</button>
                     </div>
-                    <button className="view-details-btn">View Details →</button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
