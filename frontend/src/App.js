@@ -494,73 +494,12 @@ const AppContent = () => {
 
   const { user, logout, isAuthenticated, loading } = useAuth();
 
-  // Build a clean set of 36 clothing-only items for the homepage
+  // Only show homepage clothes with available images
   const homepageClothes = useMemo(() => {
-    const bannedKeywords = [
-      'shoe', 'sneaker', 'heel', 'boot', 'sandal',
-      'bag', 'backpack', 'wallet', 'purse',
-      'watch', 'ring', 'necklace', 'bracelet', 'jewelry',
-      'phone', 'telephone', 'mobile', 'camera', 'laptop', 'gadget'
-    ];
-    const bannedCategories = new Set([
-      'fabric specials', 'accessories', 'footwear',
-      'home & decor', 'photo & memory', 'electronics', 'bags'
-    ]);
-
-    const isClothing = (p) => {
-      const name = (p.name || '').toLowerCase();
-      const cat = (p.category || '').toLowerCase();
-      if ([...bannedCategories].includes(cat)) return false;
-      if (bannedKeywords.some(k => name.includes(k))) return false;
-      return true;
-    };
-
-    const filtered = (Array.isArray(clothingCatalog) ? clothingCatalog : [])
-      .filter(isClothing);
-
-    // Identify clothing type by name keywords for variety control
-    const typeKeywords = [
-      ['saree', /(saree|sari)/i],
-      ['blouse', /blouse/i],
-      ['choli', /choli/i],
-      ['lehenga', /lehenga/i],
-      ['kurta', /\bkurta\b|\bkurti\b/i],
-      ['salwar', /salwar|kameez/i],
-      ['tshirt', /t[- ]?shirt|\btee\b/i],
-      ['shirt', /\bshirt\b/i],
-      ['jeans', /jeans|denim/i],
-      ['dress', /dress|gown/i],
-      ['skirt', /skirt/i],
-      ['jacket', /jacket|coat|blazer/i],
-      ['hoodie', /hoodie|sweatshirt/i],
-      ['shorts', /\bshorts?\b/i],
-      ['trousers', /trouser|pants/i],
-      ['sherwani', /sherwani/i],
-      ['dupatta', /dupatta/i],
-      ['top', /\btop\b|crop top/i]
-    ];
-
-    const getTypeKey = (p) => {
-      const name = (p.name || '').toLowerCase();
-      for (const [key, re] of typeKeywords) {
-        if (re.test(name)) return key;
-      }
-      return 'misc';
-    };
-
-    const MAX_PER_TYPE = 4; // hard cap per single type
-    const counts = Object.create(null);
-    const picked = [];
-    for (const p of filtered) {
-      if (picked.length >= 36) break;
-      const key = getTypeKey(p);
-      const c = counts[key] || 0;
-      if (c >= MAX_PER_TYPE) continue;
-      counts[key] = c + 1;
-      picked.push(p);
-    }
-
-    return picked;
+    // Only include products with a valid image URL (not empty, not placeholder)
+    return (Array.isArray(clothingCatalog) ? clothingCatalog : [])
+      .filter(p => p.image && typeof p.image === 'string' && !p.image.includes('placeholder') && !p.image.includes('noimage') && !p.image.includes('default'))
+      .slice(0, 36);
   }, []);
 
   // Backend API base
@@ -943,15 +882,18 @@ const AppContent = () => {
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
             gap: '2rem' 
           }}>
-            {giftsCatalog.slice(0, 18).map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={{ ...product, category: 'gifts' }} 
-                onAddToCart={addToCart}
-                isAuthenticated={isAuthenticated}
-                onAuthRequired={handleAuthRequired}
-              />
-            ))}
+            {giftsCatalog
+              .filter(p => p.image && typeof p.image === 'string' && !p.image.includes('placeholder') && !p.image.includes('noimage') && !p.image.includes('default'))
+              .slice(0, 18)
+              .map(product => (
+                <ProductCard 
+                  key={product.id} 
+                  product={{ ...product, category: 'gifts' }} 
+                  onAddToCart={addToCart}
+                  isAuthenticated={isAuthenticated}
+                  onAuthRequired={handleAuthRequired}
+                />
+              ))}
           </div>
         </section>
 

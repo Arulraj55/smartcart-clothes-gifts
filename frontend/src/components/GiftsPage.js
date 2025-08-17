@@ -10,6 +10,16 @@ const GiftProductCard = ({ product, onAddToCart, isAuthenticated }) => {
   const discountPercent = product.discount;
   const savings = originalPrice - currentPrice;
 
+  // Only render if image exists and matches available images
+  const availableImages = [
+    // List of available image filenames from backend/public/images
+    // This should be injected or imported from a generated file, but for now, assume all /images/gifts_*.jpg in backend/public/images are valid
+  ];
+  const imageFilename = product.image?.split('/').pop();
+  if (!imageFilename || !imageFilename.startsWith('gifts_')) return null;
+
+  // Optionally, check if imageFilename is in availableImages (if list is available)
+
   return (
     <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
       {/* Discount Badge */}
@@ -42,10 +52,6 @@ const GiftProductCard = ({ product, onAddToCart, isAuthenticated }) => {
             height: '224px',
             objectFit: 'cover',
             borderRadius: '8px'
-          }}
-          onError={(e) => {
-            // Use gift-appropriate placeholder as fallback
-            e.target.src = `https://via.placeholder.com/400x300/10b981/ffffff?text=${encodeURIComponent(product.name)}`;
           }}
         />
       </div>
@@ -332,9 +338,12 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
 
   const itemsPerPage = 40;
 
-  // Use the gifts catalog directly
+  // Only use products with available images
   const processedGifts = useMemo(() => {
-    return giftsCatalog;
+    return giftsCatalog.filter(product => {
+      const imageFilename = product.image?.split('/').pop();
+      return imageFilename && imageFilename.startsWith('gifts_');
+    });
   }, []);
 
   // Filtering and searching logic

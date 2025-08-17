@@ -4,6 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import clothingCatalog from '../data/clothing-catalog.json';
 
 const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired }) => {
+  // Only render if image exists and matches available images
+  const imageFilename = product.image?.split('/').pop();
+  if (!imageFilename || !imageFilename.startsWith('clothes_')) return null;
+
   return (
     <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
       {/* Discount Badge */}
@@ -35,10 +39,6 @@ const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequi
             height: '224px',
             objectFit: 'cover',
             borderRadius: '8px'
-          }}
-          onError={(e) => {
-            // Use clothing-appropriate placeholder as fallback
-            e.target.src = `https://via.placeholder.com/400x300/667eea/ffffff?text=${encodeURIComponent(product.name)}`;
           }}
         />
       </div>
@@ -249,9 +249,12 @@ const ClothesPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
   // Get unique categories
   const categories = ['All', ...new Set(clothingCatalog.map(item => item.category))];
 
-  // Filter and sort products
+  // Filter and sort products, only with available images
   const filteredProducts = useMemo(() => {
-    let filtered = clothingCatalog;
+    let filtered = clothingCatalog.filter(product => {
+      const imageFilename = product.image?.split('/').pop();
+      return imageFilename && imageFilename.startsWith('clothes_');
+    });
 
     // Filter by category
     if (selectedCategory !== 'All') {
