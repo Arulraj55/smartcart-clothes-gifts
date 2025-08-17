@@ -11,14 +11,8 @@ const GiftProductCard = ({ product, onAddToCart, isAuthenticated }) => {
   const savings = originalPrice - currentPrice;
 
   // Only render if image exists and matches available images
-  const availableImages = [
-    // List of available image filenames from backend/public/images
-    // This should be injected or imported from a generated file, but for now, assume all /images/gifts_*.jpg in backend/public/images are valid
-  ];
   const imageFilename = product.image?.split('/').pop();
   if (!imageFilename || !imageFilename.startsWith('gifts_')) return null;
-
-  // Optionally, check if imageFilename is in availableImages (if list is available)
 
   return (
     <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
