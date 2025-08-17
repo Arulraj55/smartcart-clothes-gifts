@@ -242,6 +242,48 @@ const OrderHistory = ({ user, onClose }) => {
                   <span><strong>₹{selectedOrder.total}</strong></span>
                 </div>
               </div>
+                {/* Cancel Order Button - show only if not delivered/cancelled */}
+                {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                  <button
+                    className="smartcart-button cancel-order-btn"
+                    style={{
+                      background: 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)',
+                      color: 'white',
+                      padding: '0.75rem 2rem',
+                      borderRadius: '16px',
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      marginTop: '2rem',
+                      boxShadow: '0 2px 8px 0 rgba(239,68,68,0.15)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                    }}
+                    onClick={async () => {
+                      if (!window.confirm('Are you sure you want to cancel this order?')) return;
+                      try {
+                        const token = localStorage.getItem('token');
+                        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                          ? 'http://localhost:5000/api'
+                          : '/api';
+                        const res = await fetch(`${API_BASE_URL}/orders/cancel/${selectedOrder.id}`, {
+                          method: 'PUT',
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (res.ok) {
+                          alert('Order cancelled successfully!');
+                          setSelectedOrder({ ...selectedOrder, status: 'cancelled' });
+                        } else {
+                          alert('Failed to cancel order.');
+                        }
+                      } catch (err) {
+                        alert('Error cancelling order.');
+                      }
+                    }}
+                  >
+                    ❌ Cancel Order
+                  </button>
+                )}
             </div>
           ) : (
             <div className="orders-list">
