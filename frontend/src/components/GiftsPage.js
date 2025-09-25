@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import giftsCatalog from '../data/gifts-catalog.json';
 
-const GiftProductCard = ({ product, onAddToCart, isAuthenticated }) => {
+const GiftProductCard = ({ product, onAddToCart, isAuthenticated, onViewProduct }) => {
   // Use product properties directly
   const originalPrice = product.discount > 0 ? Math.floor(product.price / (1 - product.discount / 100)) : product.price;
   const currentPrice = product.price;
@@ -47,17 +47,22 @@ const GiftProductCard = ({ product, onAddToCart, isAuthenticated }) => {
             objectFit: 'cover',
             borderRadius: '8px'
           }}
+          onClick={() => onViewProduct && onViewProduct(product)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key==='Enter') { onViewProduct && onViewProduct(product); } }}
         />
       </div>
 
       {/* Product Info */}
       <div style={{ padding: '1rem' }}>
-        <h3 style={{ 
+        <h3 onClick={() => onViewProduct && onViewProduct(product)} style={{ 
           fontSize: '1rem', 
           fontWeight: '600', 
           color: '#111827', 
           marginBottom: '0.5rem',
-          lineHeight: '1.4'
+          lineHeight: '1.4',
+          cursor: 'pointer'
         }}>
           {product.name}
         </h3>
@@ -316,7 +321,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilters }) => {
   );
 };
 
-const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
+const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
   const authCtx = useAuth();
   const isAuthed = typeof isAuthenticated === 'boolean' ? isAuthenticated : !!authCtx?.user || !!authCtx?.isAuthenticated;
   const [searchTerm, setSearchTerm] = useState('');
@@ -635,6 +640,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
               product={gift}
               onAddToCart={handleAddToCart}
               isAuthenticated={isAuthed}
+              onViewProduct={onViewProduct}
             />
           ))}
         </div>

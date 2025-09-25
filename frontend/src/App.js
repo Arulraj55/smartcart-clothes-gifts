@@ -11,182 +11,89 @@ import GiftsPage from './components/GiftsPage';
 import clothingCatalog from './data/clothing-catalog.json';
 import giftsCatalog from './data/gifts-catalog.json';
 
-// Enhanced Product Card Component
-const ProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired }) => (
-  <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
-    {/* Discount Badge */}
-    {product.discount > 0 && (
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        backgroundColor: '#ef4444',
-        color: 'white',
-        padding: '0.25rem 0.5rem',
-        borderRadius: '12px',
-        fontSize: '0.8rem',
-        fontWeight: 'bold',
-        zIndex: 1
-      }}>
-        -{product.discount}%
-      </div>
-    )}
-    
-    <img 
-      src={(product.image || '').startsWith('http') ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(product.image)}` : product.image}
-      alt={product.name}
-      style={{ 
-        width: '100%', 
-        height: '220px', 
-        objectFit: 'cover', 
-        borderRadius: '8px',
-        marginBottom: '1rem' 
-      }}
-      onError={(e) => {
-        // Use a simple data URL placeholder to avoid CORS issues completely
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 300;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#667eea';
-        ctx.fillRect(0, 0, 400, 300);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(product.name, 200, 150);
-        e.currentTarget.src = canvas.toDataURL();
-      }}
-    />
-    
-    <h3 style={{ color: '#1f2937', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 'bold' }}>
-      {product.name}
-    </h3>
-    
-    {/* Product Details */}
-    <div style={{ marginBottom: '1rem' }}>
-      <p style={{ color: '#6b7280', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
-        <span style={{ fontWeight: '600', color: '#4f46e5' }}>
-          {product.brand || (product.type ? product.type.charAt(0).toUpperCase() + product.type.slice(1) : 'Product')}
-        </span> • {product.category === 'clothes' ? (product.gender || 'Unisex') : (product.ageGroup || 'All Ages')}
-      </p>
-      <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>
-        {product.category === 'clothes' ? (product.fabric || 'Cotton') : (product.material || 'Quality')} • 
-        <span style={{ color: '#059669', fontWeight: '600', marginLeft: '0.25rem' }}>
-          ⭐ {(parseFloat(product.rating) || 4.5).toFixed(1)}
-        </span>
-      </p>
-    </div>
-    
-    {/* Category-specific details */}
-    {product.category === 'clothes' ? (
+// Enhanced Product Card Component (fixed)
+const ProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
+  const handleView = () => onViewProduct && onViewProduct(product);
+  return (
+    <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
+      {product.discount > 0 && (
+        <div style={{
+          position: 'absolute', top: '10px', right: '10px', backgroundColor: '#ef4444', color: 'white',
+          padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 1
+        }}>-{product.discount}%</div>
+      )}
+      <img
+        src={(product.image || '').startsWith('http') ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(product.image)}` : product.image}
+        alt={product.name}
+        style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem', cursor: 'pointer' }}
+        onClick={handleView}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleView(); }}
+        tabIndex={0}
+        onError={(e) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 400; canvas.height = 300; const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#667eea'; ctx.fillRect(0,0,400,300); ctx.fillStyle = '#fff'; ctx.font='20px Arial'; ctx.textAlign='center'; ctx.fillText(product.name,200,150);
+          e.currentTarget.src = canvas.toDataURL();
+        }}
+      />
+      <h3 style={{ color: '#1f2937', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={handleView}>{product.name}</h3>
       <div style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
-          {(product.sizes || ['S', 'M', 'L']).slice(0, 4).map(size => (
-            <span key={size} style={{
-              fontSize: '0.7rem',
-              padding: '0.15rem 0.4rem',
-              backgroundColor: '#f3f4f6',
-              borderRadius: '4px',
-              color: '#374151'
-            }}>
-              {size}
-            </span>
-          ))}
+        <p style={{ color: '#6b7280', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+          <span style={{ fontWeight: 600, color: '#4f46e5' }}>{product.brand || (product.type ? product.type.charAt(0).toUpperCase() + product.type.slice(1) : 'Product')}</span>
+          {' • '}{product.category === 'clothes' ? (product.gender || 'Unisex') : (product.ageGroup || 'All Ages')}
+        </p>
+        <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>
+          {product.category === 'clothes' ? (product.fabric || 'Cotton') : (product.material || 'Quality')} •
+          <span style={{ color: '#059669', fontWeight: 600, marginLeft: '0.25rem' }}>⭐ {(parseFloat(product.rating) || 4.5).toFixed(1)}</span>
+        </p>
+      </div>
+      {product.category === 'clothes' ? (
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
+            {(product.sizes || ['S','M','L']).slice(0,4).map(size => (
+              <span key={size} style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#f3f4f6', borderRadius: '4px', color: '#374151' }}>{size}</span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            {(product.colors || ['Blue','Red','Green']).slice(0,3).map(color => (
+              <div key={color} style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: (c => {
+                const lc = c.toLowerCase();
+                if (lc === 'multicolor') return '#6366f1';
+                if (lc === 'check') return '#8b5cf6';
+                if (lc === 'floral') return '#ec4899';
+                return lc;
+              })(color), border: '1px solid #e5e7eb' }}/>
+            ))}
+            {product.colors && product.colors.length > 3 && <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>+{product.colors.length - 3}</span>}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
-          {(product.colors || ['Blue', 'Red', 'Green']).slice(0, 3).map(color => (
-            <div key={color} style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: color.toLowerCase() === 'multicolor' ? 'linear-gradient(45deg, #ff0000, #00ff00, #0000ff)' : 
-                              color.toLowerCase() === 'check' ? '#8b5cf6' :
-                              color.toLowerCase() === 'floral' ? '#ec4899' :
-                              color.toLowerCase(),
-              border: '1px solid #e5e7eb'
-            }} />
-          ))}
-          {product.colors && product.colors.length > 3 && (
-            <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>+{product.colors.length - 3}</span>
+      ) : (
+        <div style={{ marginBottom: '1rem' }}>
+          {(product.occasion || product.deliverySpeed) && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              {product.occasion && <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#ddd6fe', color: '#5b21b6', borderRadius: 8, textTransform: 'capitalize' }}>🎉 {product.occasion}</span>}
+              {product.deliverySpeed && <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#fef3c7', color: '#d97706', borderRadius: 8, textTransform: 'capitalize' }}>🚚 {product.deliverySpeed}</span>}
+            </div>
           )}
         </div>
-      </div>
-    ) : (
-      <div style={{ marginBottom: '1rem' }}>
-        {(product.occasion || product.deliverySpeed) && (
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            {product.occasion && (
-              <span style={{
-                fontSize: '0.7rem',
-                padding: '0.15rem 0.4rem',
-                backgroundColor: '#ddd6fe',
-                color: '#5b21b6',
-                borderRadius: '8px',
-                textTransform: 'capitalize'
-              }}>
-                🎉 {product.occasion}
-              </span>
-            )}
-            {product.deliverySpeed && (
-              <span style={{
-                fontSize: '0.7rem',
-                padding: '0.15rem 0.4rem',
-                backgroundColor: '#fef3c7',
-                color: '#d97706',
-                borderRadius: '8px',
-                textTransform: 'capitalize'
-              }}>
-                🚚 {product.deliverySpeed}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    )}
-    
-    {/* Pricing */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-      <div>
-        <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#059669' }}>
-          ₹{product.price}
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div>
+          <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#059669' }}>₹{product.price}</span>
+          {product.originalPrice > product.price && (
+            <span style={{ fontSize: '0.9rem', color: '#6b7280', textDecoration: 'line-through', marginLeft: '0.5rem' }}>₹{product.originalPrice}</span>
+          )}
+        </div>
+        <span style={{ backgroundColor: product.category === 'clothes' ? '#ddd6fe' : '#fce7f3', color: product.category === 'clothes' ? '#5b21b6' : '#be185d', padding: '0.25rem 0.5rem', borderRadius: 9999, fontSize: '0.8rem' }}>
+          ML: {(((product && typeof product.mlScore === 'number' ? product.mlScore : 0.9) * 100)).toFixed(0)}%
         </span>
-        {product.originalPrice > product.price && (
-          <span style={{ 
-            fontSize: '0.9rem', 
-            color: '#6b7280', 
-            textDecoration: 'line-through',
-            marginLeft: '0.5rem'
-          }}>
-            ₹{product.originalPrice}
-          </span>
-        )}
       </div>
-      <span style={{ 
-        backgroundColor: product.category === 'clothes' ? '#ddd6fe' : '#fce7f3', 
-        color: product.category === 'clothes' ? '#5b21b6' : '#be185d', 
-        padding: '0.25rem 0.5rem', 
-        borderRadius: '9999px', 
-        fontSize: '0.8rem' 
-      }}>
-        ML: {(((product && typeof product.mlScore === 'number' ? product.mlScore : 0.9) * 100)).toFixed(0)}%
-      </span>
+      <button className="smartcart-button" style={{ width: '100%' }} onClick={() => {
+        if (isAuthenticated) onAddToCart(product); else onAuthRequired();
+      }}>🛒 {isAuthenticated ? 'Add to Cart' : 'Sign In to Add'}</button>
     </div>
-    
-    <button 
-      className="smartcart-button" 
-      style={{ width: '100%' }}
-      onClick={() => {
-        if (isAuthenticated) {
-          onAddToCart(product);
-        } else {
-          onAuthRequired();
-        }
-      }}
-    >
-      🛒 {isAuthenticated ? 'Add to Cart' : 'Sign In to Add'}
-    </button>
-  </div>
-);
+  );
+};
 
 // Header Component
 const Header = ({ cartCount, onCartClick, user, onAuthClick, onLogout, currentPage, onNavigate, onShowOrderHistory }) => (
@@ -491,6 +398,7 @@ const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [showCheckout, setShowCheckout] = useState(false);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const { user, logout, isAuthenticated, loading } = useAuth();
 
@@ -576,6 +484,7 @@ const AppContent = () => {
         };
       });
       setCartItems(items);
+      return true;
     } catch {
       // fallback update local for UX
       setCartItems(prev => {
@@ -583,7 +492,14 @@ const AppContent = () => {
         if (existing) return prev.map(i => i.id === (product._id || product.id) ? { ...i, quantity: (i.quantity||1)+1 } : i);
         return [...prev, { id: product._id || product.id, name: product.name, image: product.image, price: product.price, quantity: 1 }];
       });
+      return false;
     }
+  };
+
+  const buyNow = async (product) => {
+    const ok = await addToCart(product);
+    setShowCheckout(true);
+    return ok;
   };
 
   const updateQuantity = async (id, newQuantity) => {
@@ -838,6 +754,7 @@ const AppContent = () => {
                 onAddToCart={addToCart}
                 isAuthenticated={isAuthenticated}
                 onAuthRequired={handleAuthRequired}
+                onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
               />
             ))}
           </div>
@@ -892,6 +809,7 @@ const AppContent = () => {
                   onAddToCart={addToCart}
                   isAuthenticated={isAuthenticated}
                   onAuthRequired={handleAuthRequired}
+                  onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
                 />
               ))}
           </div>
@@ -970,6 +888,7 @@ const AppContent = () => {
           onAddToCart={addToCart}
           isAuthenticated={isAuthenticated}
           onAuthRequired={handleAuthRequired}
+          onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
         />
       )}
 
@@ -978,7 +897,22 @@ const AppContent = () => {
           onAddToCart={addToCart}
           isAuthenticated={isAuthenticated}
           onAuthRequired={handleAuthRequired}
+          onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
         />
+      )}
+
+      {currentPage === 'product' && selectedProduct && (
+        <React.Suspense fallback={<div style={{ padding: '2rem' }}>Loading product...</div>}>
+          {/* Lazy import to avoid initial bundle bloat */}
+          {React.createElement(require('./components/ProductDetail').default, {
+            product: selectedProduct,
+            onClose: () => { setSelectedProduct(null); setCurrentPage('home'); },
+            onAddToCart: addToCart,
+            onBuyNow: buyNow,
+            isAuthenticated,
+            onAuthRequired: handleAuthRequired
+          })}
+        </React.Suspense>
       )}
 
   {/* Profile page removed */}

@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import clothingCatalog from '../data/clothing-catalog.json';
 
-const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired }) => {
+const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
   // Only render if image exists and matches available images
   const imageFilename = product.image?.split('/').pop();
   if (!imageFilename || !imageFilename.startsWith('clothes_')) return null;
@@ -40,18 +40,23 @@ const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequi
             objectFit: 'cover',
             borderRadius: '8px'
           }}
+          onClick={() => onViewProduct && onViewProduct(product)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key==='Enter') { onViewProduct && onViewProduct(product); } }}
         />
       </div>
 
       {/* Product Information */}
       <div style={{ padding: '0 0.5rem' }}>
         {/* Product Name */}
-        <h3 style={{
+        <h3 onClick={() => onViewProduct && onViewProduct(product)} style={{
           fontSize: '1rem',
           fontWeight: '600',
           marginBottom: '0.5rem',
           color: '#1f2937',
-          lineHeight: '1.2'
+          lineHeight: '1.2',
+          cursor: 'pointer'
         }}>
           {product.name}
         </h3>
@@ -235,7 +240,7 @@ const ClothesProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequi
   );
 };
 
-const ClothesPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
+const ClothesPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
   const { user } = useAuth();
   const isAuthed = typeof isAuthenticated === 'boolean' ? isAuthenticated : !!user;
   const [currentPage, setCurrentPage] = useState(1);
@@ -432,6 +437,7 @@ const ClothesPage = ({ onAddToCart, isAuthenticated, onAuthRequired }) => {
             onAddToCart={handleAddToCart}
             isAuthenticated={isAuthed}
             onAuthRequired={handleAuthRequired}
+            onViewProduct={onViewProduct}
           />
         ))}
       </div>
