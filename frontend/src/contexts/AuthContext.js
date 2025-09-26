@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
         console.log('Raw response text:', text);
         try {
           const data = JSON.parse(text);
-          return { success: false, message: data.message || `Server error: ${response.status}` };
+          return { success: false, message: data.message || `Server error: ${response.status}`, pendingVerification: !!data.pendingVerification };
         } catch (parseError) {
           console.log('Parse error:', parseError);
           return { success: false, message: `Server returned non-JSON response: ${text.substring(0, 100)}...` };
@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
         return { success: true, message: data.message };
       } else {
-        return { success: false, message: data.message || 'Login failed' };
+        return { success: false, message: data.message || 'Login failed', pendingVerification: !!data.pendingVerification };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }) => {
         console.log('Raw response text:', text);
         try {
           const data = JSON.parse(text);
-          return { success: false, message: data.message || `Server error: ${response.status}` };
+          return { success: false, message: data.message || `Server error: ${response.status}`, pendingVerification: !!data.pendingVerification };
         } catch (parseError) {
           console.log('Parse error:', parseError);
           return { success: false, message: `Server returned non-JSON response: ${text.substring(0, 100)}...` };
@@ -161,16 +161,42 @@ export const AuthProvider = ({ children }) => {
       console.log('Registration response:', data);
 
       if (data.success) {
-        setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('token', data.token);
-        return { success: true, message: data.message };
+        // For email verification flow, backend returns pendingVerification: true and no token/user
+        if (data.pendingVerification) {
+          return { success: true, pendingVerification: true, message: data.message };
+        }
+        // Fallback: if backend ever returns token/user on register
+        if (data.token && data.user) {
+          setUser(data.user);
+          setToken(data.token);
+          localStorage.setItem('token', data.token);
+        }
+        return { success: true, message: data.message, pendingVerification: !!data.pendingVerification };
       } else {
-        return { success: false, message: data.message || 'Registration failed' };
+        return { success: false, message: data.message || 'Registration failed', pendingVerification: !!data.pendingVerification };
       }
     } catch (error) {
       console.error('Register error:', error);
       return { success: false, message: `Network error: ${error.message}. Please check if the backend server is running.` };
+    }
+  };
+
+  const resendVerification = async (email) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch {
+        return { success: false, message: `Unexpected response: ${text.substring(0, 100)}...` };
+      }
+      if (response.ok) return { success: true, message: data.message || 'Verification email resent' };
+      return { success: false, message: data.message || 'Failed to resend verification email' };
+    } catch (error) {
+      return { success: false, message: `Network error: ${error.message}` };
     }
   };
 
@@ -186,6 +212,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    resendVerification,
     logout,
     isAuthenticated: !!user
   };

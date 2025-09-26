@@ -13,7 +13,8 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { login, register } = useAuth();
+  const { login, register, resendVerification } = useAuth();
+  const [pendingEmail, setPendingEmail] = useState('');
 
   // Keep internal mode in sync with the prop when the modal opens or prop changes
   useEffect(() => {
@@ -51,13 +52,15 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
         }
         
         const result = await register(formData.name, formData.email, formData.password);
-        if (result.success) {
-          setSuccess('Registration successful! Welcome to SmartCart!');
-          setTimeout(() => {
-            onClose();
-          }, 1500);
+        if (result.success && result.pendingVerification) {
+          setPendingEmail(formData.email);
+          setSuccess('We\'ve sent a verification email. Please check your inbox and click the link to complete registration.');
+        } else if (result.success) {
+          setSuccess('Registration successful!');
+          setTimeout(() => { onClose(); }, 1500);
         } else {
           setError(result.message);
+          if (result.pendingVerification) setPendingEmail(formData.email);
         }
       } else {
         const result = await login(formData.email, formData.password);
@@ -68,6 +71,7 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
           }, 1500);
         } else {
           setError(result.message);
+          if (result.pendingVerification) setPendingEmail(formData.email);
         }
       }
     } catch (error) {
@@ -83,7 +87,25 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
     setError('');
     setSuccess('');
+    setPendingEmail('');
     if (onSwitchMode) onSwitchMode(newMode);
+  };
+
+  const handleResend = async () => {
+    if (!pendingEmail && !formData.email) {
+      setError('Please enter your email to resend verification.');
+      return;
+    }
+    setLoading(true);
+    const email = pendingEmail || formData.email;
+    const res = await resendVerification(email);
+    setLoading(false);
+    if (res.success) {
+      setSuccess(res.message);
+      setError('');
+    } else {
+      setError(res.message);
+    }
   };
 
   return (
@@ -197,6 +219,14 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
             textAlign: 'center'
           }}>
             {success}
+            {(pendingEmail || (mode === 'login' && error && error.toLowerCase().includes('not verified'))) && (
+              <div style={{ marginTop: '0.75rem', color: '#065f46' }}>
+                Didn\'t get the email? Check spam or
+                <button onClick={handleResend} disabled={loading} style={{ marginLeft: 8, background: 'none', border: 'none', color: '#0ea5e9', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                  Resend verification
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -387,6 +417,29 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
               mode === 'login' ? '🔑 Sign In' : '🎉 Create Account'
             )}
           </button>
+
+          {(pendingEmail || (mode === 'login' && error && error.toLowerCase().includes('not verified'))) && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                marginTop: '0.75rem',
+                background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              ✉️ Resend Verification Email
+            </button>
+          )}
         </form>
 
         {/* Switch Mode */}

@@ -8,6 +8,7 @@ import Checkout from './components/Checkout';
 import OrderHistory from './components/OrderHistory';
 import ClothesPage from './components/ClothesPage';
 import GiftsPage from './components/GiftsPage';
+import VerifyEmail from './components/VerifyEmail';
 import clothingCatalog from './data/clothing-catalog.json';
 import giftsCatalog from './data/gifts-catalog.json';
 
@@ -395,7 +396,10 @@ const AppContent = () => {
   const [showCart, setShowCart] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/verify-email') return 'verify-email';
+    return 'home';
+  });
   const [showCheckout, setShowCheckout] = useState(false);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -881,6 +885,10 @@ const AppContent = () => {
             alert('Contact feature coming soon! 📧');
           }}
         />
+      )}
+
+      {currentPage === 'verify-email' && (
+        <VerifyEmail onDone={() => setCurrentPage('home')} />
       )}
 
       {currentPage === 'clothes' && ClothesPage && (
