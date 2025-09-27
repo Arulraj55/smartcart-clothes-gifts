@@ -88,7 +88,8 @@ export const AuthProvider = ({ children }) => {
         console.log('Raw response text:', text);
         try {
           const data = JSON.parse(text);
-          return { success: false, message: data.message || `Server error: ${response.status}`, pendingVerification: !!data.pendingVerification };
+          const notRegistered = response.status === 404 || /no account found/i.test(data.message || '');
+          return { success: false, message: data.message || `Server error: ${response.status}`, pendingVerification: !!data.pendingVerification, notRegistered };
         } catch (parseError) {
           console.log('Parse error:', parseError);
           return { success: false, message: `Server returned non-JSON response: ${text.substring(0, 120)}...` };
@@ -115,7 +116,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
         return { success: true, message: data.message };
       } else {
-        return { success: false, message: data.message || 'Login failed', pendingVerification: !!data.pendingVerification };
+        const notRegistered = /no account found/i.test(data.message || '');
+        return { success: false, message: data.message || 'Login failed', pendingVerification: !!data.pendingVerification, notRegistered };
       }
     } catch (error) {
       console.error('Login error:', error);

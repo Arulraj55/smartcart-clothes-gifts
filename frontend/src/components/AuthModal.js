@@ -74,6 +74,9 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
         } else {
           setError(result.message);
           if (result.pendingVerification) setPendingEmail(formData.email);
+          if (result.notRegistered) {
+            setSuccess('No account found for this email. Please register first.');
+          }
         }
       }
     } catch (error) {

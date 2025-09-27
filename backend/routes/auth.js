@@ -11,6 +11,22 @@ const { auth } = require('../middleware/auth');
 // @route   POST /api/auth/register
 // @desc    Register user
 // @access  Public
+// Helper: kick off email sending in background (non-blocking)
+function startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl) {
+  (async () => {
+    try {
+      await sendVerificationEmail(normalizedEmail, verifyUrl);
+    } catch (e1) {
+      console.error('sendVerificationEmail failed (pre-registration). Trying API link fallback:', e1.message);
+      try {
+        await sendVerificationEmail(normalizedEmail, apiVerifyUrl);
+      } catch (e2) {
+        console.error('Fallback sendVerificationEmail also failed:', e2.message);
+      }
+    }
+  })();
+}
+
 router.post('/register', async (req, res) => {
   try {
   const { name, email, password } = req.body;
@@ -45,28 +61,16 @@ router.post('/register', async (req, res) => {
   const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
-    // Send email with fallback
-    let emailSent = false;
-    try {
-      await sendVerificationEmail(normalizedEmail, verifyUrl);
-      emailSent = true;
-    } catch (e1) {
-      console.error('sendVerificationEmail failed (pre-registration). Trying API link fallback:', e1.message);
-      try {
-        await sendVerificationEmail(normalizedEmail, apiVerifyUrl);
-        emailSent = true;
-      } catch (e2) {
-        console.error('Fallback sendVerificationEmail also failed:', e2.message);
-      }
-    }
+    // Fire-and-forget email send (do not block the response)
+    startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
 
     // 202 Accepted clearly communicates “pending verification”
-    const devPayload = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production') ? {} : { devVerifyUrl: verifyUrl };
+    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+    const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
+    const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
     res.status(202).json({
       success: true,
-      message: emailSent
-        ? 'We sent a verification email. Please click the link to complete registration.'
-        : 'We created your verification link but could not send the email right now. Use "Resend verification" shortly.',
+      message: 'We sent (or are sending) a verification email. Please check your inbox.',
       pendingVerification: true,
       ...devPayload
     });
@@ -103,14 +107,15 @@ router.post('/login', async (req, res) => {
   const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
         console.log('Login pending verification link:', verifyUrl);
-        try {
-          await sendVerificationEmail(normalizedEmail, verifyUrl);
-        } catch (e1) {
-          try { await sendVerificationEmail(normalizedEmail, apiVerifyUrl); } catch {}
-        }
-        return res.status(403).json({ success: false, message: 'Registration pending. We resent the verification email. Please check your inbox.', pendingVerification: true });
+        // Background resend (non-blocking)
+        startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
+        const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+        const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
+        const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
+        return res.status(403).json({ success: false, message: 'Registration pending. We sent you a fresh verification link.', pendingVerification: true, ...devPayload });
       }
-      return res.status(400).json({ success: false, message: 'Invalid email or password' });
+      // No user and no pending registration: instruct to register (do not send any email)
+      return res.status(404).json({ success: false, message: 'No account found for this email. Please register first.' });
     }
 
     // Check password
@@ -133,12 +138,12 @@ router.post('/login', async (req, res) => {
   const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
       console.log('Login legacy verification link:', verifyUrl);
-      try {
-        await sendVerificationEmail(normalizedEmail, verifyUrl);
-      } catch (e1) {
-        try { await sendVerificationEmail(normalizedEmail, apiVerifyUrl); } catch {}
-      }
-      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a new verification email.', pendingVerification: true });
+      // Background resend (non-blocking)
+      startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
+      const exposeDev2 = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+      const isProd2 = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
+      const devPayload2 = (!isProd2 || exposeDev2) ? { devVerifyUrl: verifyUrl } : {};
+      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a new verification email.', pendingVerification: true, ...devPayload2 });
     }
 
     // Create JWT token
@@ -253,20 +258,12 @@ router.post('/resend-verification', async (req, res) => {
     const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
   const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-    let emailSent = false;
-    try {
-      await sendVerificationEmail(normalizedEmail, verifyUrl);
-      emailSent = true;
-    } catch (e1) {
-      console.error('Resend verification: primary email send failed, trying fallback link:', e1.message);
-      try {
-        await sendVerificationEmail(normalizedEmail, apiVerifyUrl);
-        emailSent = true;
-      } catch (e2) {
-        console.error('Resend verification: fallback also failed:', e2.message);
-      }
-    }
-    res.json({ success: true, message: emailSent ? 'Verification email resent' : 'Tried to resend but email failed to send. Please try again later.' });
+    // Background resend (non-blocking)
+    startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
+    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+    const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
+    const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
+    res.json({ success: true, message: 'Verification email has been sent (or is being sent). Please check your inbox.', ...devPayload });
   } catch (error) {
     console.error('Resend verification error:', error);
     res.status(500).json({ success: false, message: 'Server error resending email', error: error.message });
