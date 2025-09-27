@@ -8,9 +8,13 @@ const VerifyEmail = ({ onDone }) => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const email = params.get('email');
-    const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-      ? 'http://localhost:5000/api'
-      : '/api';
+    // Prefer explicit API base when provided (e.g. Render URL), else localhost in dev, else relative '/api'
+    const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+    const API_BASE_URL = explicitBase
+      ? explicitBase.replace(/\/$/, '')
+      : ((typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+          ? 'http://localhost:5000/api'
+          : '/api');
     if (!token || !email) {
       setStatus('error');
       setMessage('Invalid verification link.');

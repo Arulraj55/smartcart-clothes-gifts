@@ -42,7 +42,8 @@ router.post('/register', async (req, res) => {
     // Build verify URL
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-    const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
     // Send email with fallback
     let emailSent = false;
@@ -99,7 +100,8 @@ router.post('/login', async (req, res) => {
         await RegistrationToken.updateOne({ _id: pending._id }, { $set: { tokenHash, expiresAt } });
         const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-        const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
         console.log('Login pending verification link:', verifyUrl);
         try {
           await sendVerificationEmail(normalizedEmail, verifyUrl);
@@ -128,7 +130,8 @@ router.post('/login', async (req, res) => {
       await user.save();
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-      const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
       console.log('Login legacy verification link:', verifyUrl);
       try {
         await sendVerificationEmail(normalizedEmail, verifyUrl);
@@ -248,7 +251,8 @@ router.post('/resend-verification', async (req, res) => {
     }
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-    const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
     let emailSent = false;
     try {
       await sendVerificationEmail(normalizedEmail, verifyUrl);

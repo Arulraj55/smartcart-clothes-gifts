@@ -415,9 +415,14 @@ const AppContent = () => {
   }, []);
 
   // Backend API base
-  const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-    ? 'http://localhost:5000/api'
-    : '/api';
+  // Prefer explicit env (REACT_APP_API_BASE_URL, e.g. https://smartcart-clothes-gifts.onrender.com/api),
+  // otherwise use localhost in dev, else relative '/api'
+  const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+  const API_BASE_URL = explicitBase
+    ? explicitBase.replace(/\/$/, '')
+    : ((typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+        ? 'http://localhost:5000/api'
+        : '/api');
 
   // Sync cart from backend on login/load
   React.useEffect(() => {

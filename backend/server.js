@@ -55,13 +55,16 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS configuration (allow localhost on common dev ports)
+// CORS configuration (allow localhost on common dev ports + FRONTEND_URL(S) from env)
+const extraOrigins = [];
+if (process.env.FRONTEND_URL) extraOrigins.push(process.env.FRONTEND_URL);
+if (process.env.FRONTEND_URLS) extraOrigins.push(...process.env.FRONTEND_URLS.split(',').map(s => s.trim()).filter(Boolean));
 const allowedOrigins = new Set([
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  'https://glittery-conkies-6d48e0.netlify.app'
+  ...extraOrigins
 ].filter(Boolean));
 
 const corsOptions = {
