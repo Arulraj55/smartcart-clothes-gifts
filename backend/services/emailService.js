@@ -16,7 +16,7 @@ if (!useResend) {
       ? {
           host: process.env.SMTP_HOST,
           port: Number(process.env.SMTP_PORT || 587),
-          secure: false, // STARTTLS
+          secure: Number(process.env.SMTP_PORT || 587) === 465, // automatic: 465 -> SMTPS, else STARTTLS
           auth: {
             user: process.env.EMAIL_USER || process.env.SMTP_EMAIL,
             pass: process.env.EMAIL_PASS || process.env.SMTP_PASSWORD,
@@ -52,6 +52,27 @@ if (!useResend) {
       console.error('✉️  Email transporter verification failed:', err.message);
     });
 }
+
+function getEmailProviderInfo() {
+  return {
+    provider: useResend ? 'resend' : (useSmtp ? 'smtp' : (useGmail ? 'gmail' : 'none')),
+    from: EMAIL_FROM || ''
+  };
+}
+
+// Startup info
+(() => {
+  const info = getEmailProviderInfo();
+  if (info.provider === 'resend') {
+    console.log(`✉️  Email: using Resend API as ${info.from || '(no from set)'}`);
+  } else if (info.provider === 'smtp') {
+    console.log(`✉️  Email: using SMTP (${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}) as ${info.from || '(no from set)'}`);
+  } else if (info.provider === 'gmail') {
+    console.log(`✉️  Email: using Gmail as ${info.from || '(no from set)'}`);
+  } else {
+    console.warn('✉️  Email: no provider configured. Set RESEND_API_KEY (recommended) or EMAIL_USER/EMAIL_PASS (or SMTP_*).');
+  }
+})();
 
 async function sendViaResend(to, subject, html) {
   if (!useResend) throw new Error('Resend not configured');
@@ -109,4 +130,5 @@ async function sendVerificationEmail(to, verifyUrl) {
 
 module.exports = {
   sendVerificationEmail,
+  getEmailProviderInfo,
 };
