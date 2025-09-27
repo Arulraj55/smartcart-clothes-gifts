@@ -1,9 +1,14 @@
 const nodemailer = require('nodemailer');
-// Use dynamic import for node-fetch v3 in CommonJS
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// Resend official SDK (preferred on Render)
+let ResendSDK = null;
+try {
+  ResendSDK = require('resend').Resend;
+} catch (_) {
+  ResendSDK = null;
+}
 
 // Config
-const useResend = !!process.env.RESEND_API_KEY; // Recommended on platforms that block SMTP
+const useResend = !!process.env.RESEND_API_KEY && !!ResendSDK; // Recommended on platforms that block SMTP
 const useSmtp = !!process.env.SMTP_HOST; // Explicit SMTP
 const useGmail = !useResend && !useSmtp; // Fallback to Gmail creds if provided
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_EMAIL;
@@ -76,25 +81,9 @@ function getEmailProviderInfo() {
 
 async function sendViaResend(to, subject, html) {
   if (!useResend) throw new Error('Resend not configured');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ from: EMAIL_FROM, to, subject, html }),
-      signal: controller.signal
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Resend API error: ${res.status} ${text}`);
-    }
-  } finally {
-    clearTimeout(timeout);
-  }
+  const client = new ResendSDK(process.env.RESEND_API_KEY);
+  const { error } = await client.emails.send({ from: EMAIL_FROM, to, subject, html });
+  if (error) throw new Error(`Resend API error: ${error.message || String(error)}`);
 }
 
 async function sendViaNodemailer(to, subject, html) {
