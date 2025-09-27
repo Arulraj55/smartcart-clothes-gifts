@@ -60,12 +60,14 @@ router.post('/register', async (req, res) => {
     }
 
     // 202 Accepted clearly communicates “pending verification”
+    const devPayload = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production') ? {} : { devVerifyUrl: verifyUrl };
     res.status(202).json({
       success: true,
       message: emailSent
         ? 'We sent a verification email. Please click the link to complete registration.'
         : 'We created your verification link but could not send the email right now. Use "Resend verification" shortly.',
-      pendingVerification: true
+      pendingVerification: true,
+      ...devPayload
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -88,10 +90,23 @@ router.post('/login', async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
-      // If there's a pending pre-registration, instruct verification
+      // If there's a pending pre-registration, resend verification email and instruct verification
       const pending = await RegistrationToken.findOne({ email: normalizedEmail, expiresAt: { $gt: new Date() } });
       if (pending) {
-        return res.status(403).json({ success: false, message: 'Registration pending. Please verify your email to activate your account.', pendingVerification: true });
+        const plainToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+        await RegistrationToken.updateOne({ _id: pending._id }, { $set: { tokenHash, expiresAt } });
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+        const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+        console.log('Login pending verification link:', verifyUrl);
+        try {
+          await sendVerificationEmail(normalizedEmail, verifyUrl);
+        } catch (e1) {
+          try { await sendVerificationEmail(normalizedEmail, apiVerifyUrl); } catch {}
+        }
+        return res.status(403).json({ success: false, message: 'Registration pending. We resent the verification email. Please check your inbox.', pendingVerification: true });
       }
       return res.status(400).json({ success: false, message: 'Invalid email or password' });
     }
@@ -106,11 +121,21 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user.isEmailVerified) {
-      return res.status(403).json({
-        success: false,
-        message: 'Email not verified. Please check your email for the verification link.',
-        pendingVerification: true
-      });
+      // Legacy unverified user - issue a new token and send verification email
+      const plainToken = crypto.randomBytes(32).toString('hex');
+      user.emailVerificationToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+      user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
+      await user.save();
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+      const apiVerifyUrl = `${(process.env.API_BASE_URL || 'http://localhost:5000')}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+      console.log('Login legacy verification link:', verifyUrl);
+      try {
+        await sendVerificationEmail(normalizedEmail, verifyUrl);
+      } catch (e1) {
+        try { await sendVerificationEmail(normalizedEmail, apiVerifyUrl); } catch {}
+      }
+      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a new verification email.', pendingVerification: true });
     }
 
     // Create JWT token

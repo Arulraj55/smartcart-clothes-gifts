@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
           return { success: false, message: data.message || `Server error: ${response.status}`, pendingVerification: !!data.pendingVerification };
         } catch (parseError) {
           console.log('Parse error:', parseError);
-          return { success: false, message: `Server returned non-JSON response: ${text.substring(0, 100)}...` };
+          return { success: false, message: `Server returned non-JSON response: ${text.substring(0, 120)}...` };
         }
       }
 
@@ -163,7 +163,7 @@ export const AuthProvider = ({ children }) => {
       if (data.success) {
         // For email verification flow, backend returns pendingVerification: true and no token/user
         if (data.pendingVerification) {
-          return { success: true, pendingVerification: true, message: data.message };
+          return { success: true, pendingVerification: true, message: data.message, devVerifyUrl: data.devVerifyUrl };
         }
         // Fallback: if backend ever returns token/user on register
         if (data.token && data.user) {
@@ -171,7 +171,7 @@ export const AuthProvider = ({ children }) => {
           setToken(data.token);
           localStorage.setItem('token', data.token);
         }
-        return { success: true, message: data.message, pendingVerification: !!data.pendingVerification };
+        return { success: true, message: data.message, pendingVerification: !!data.pendingVerification, devVerifyUrl: data.devVerifyUrl };
       } else {
         return { success: false, message: data.message || 'Registration failed', pendingVerification: !!data.pendingVerification };
       }

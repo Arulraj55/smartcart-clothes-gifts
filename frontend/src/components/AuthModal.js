@@ -15,6 +15,7 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
 
   const { login, register, resendVerification } = useAuth();
   const [pendingEmail, setPendingEmail] = useState('');
+  const [devVerifyUrl, setDevVerifyUrl] = useState('');
 
   // Keep internal mode in sync with the prop when the modal opens or prop changes
   useEffect(() => {
@@ -55,6 +56,7 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
         if (result.success && result.pendingVerification) {
           setPendingEmail(formData.email);
           setSuccess('We\'ve sent a verification email. Please check your inbox and click the link to complete registration.');
+          if (result.devVerifyUrl) setDevVerifyUrl(result.devVerifyUrl);
         } else if (result.success) {
           setSuccess('Registration successful!');
           setTimeout(() => { onClose(); }, 1500);
@@ -87,7 +89,8 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
     setError('');
     setSuccess('');
-    setPendingEmail('');
+  setPendingEmail('');
+  setDevVerifyUrl('');
     if (onSwitchMode) onSwitchMode(newMode);
   };
 
@@ -219,6 +222,14 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
             textAlign: 'center'
           }}>
             {success}
+            {devVerifyUrl && (
+              <div style={{ marginTop: 8, fontSize: '0.9rem' }}>
+                Dev-only: You can verify using this link:
+                <div style={{ wordBreak: 'break-all', marginTop: 4 }}>
+                  <a href={devVerifyUrl} target="_blank" rel="noreferrer">{devVerifyUrl}</a>
+                </div>
+              </div>
+            )}
             {(pendingEmail || (mode === 'login' && error && error.toLowerCase().includes('not verified'))) && (
               <div style={{ marginTop: '0.75rem', color: '#065f46' }}>
                 Didn\'t get the email? Check spam or
