@@ -30,6 +30,10 @@ const SearchRanking = require('./ml/searchRanking');
 
 const app = express();
 
+// Behind a reverse proxy (Render/Netlify), trust proxy for correct IP detection
+// This fixes express-rate-limit validations and ensures req.ip is derived from X-Forwarded-For
+app.set('trust proxy', 1);
+
 // Security and performance middleware
 // Allow cross-origin resource embedding (needed for image proxy consumed by frontend on a different origin)
 app.use(helmet({
@@ -42,18 +46,6 @@ app.use(compression());
 app.use(morgan('combined', {
   skip: (req, res) => req.path.startsWith('/api/images/proxy')
 }));
-
-// Rate limiting (exclude image proxy which needs many concurrent requests)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // increased limit for image-heavy app
-  message: 'Too many requests from this IP, please try again later.',
-  skip: (req) => {
-    // Skip rate limiting for image proxy
-    return req.path.startsWith('/api/images/proxy');
-  }
-});
-app.use('/api/', limiter);
 
 // CORS configuration (allow localhost on common dev ports + FRONTEND_URL(S) from env)
 const extraOrigins = [];
@@ -71,9 +63,13 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (e.g., mobile apps, curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+    const isNetlify = /^https?:\/\/([a-zA-Z0-9-]+)\.netlify\.app$/.test(origin);
+    if (allowedOrigins.has(origin) || isLocalhost || isNetlify) {
       return callback(null, true);
     }
+    // Log disallowed origin for debugging
+    console.warn('CORS blocked origin:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -89,10 +85,27 @@ const corsOptions = {
   ]
 };
 
-app.use(cors(corsOptions));
+// Allow-all switch for troubleshooting (set CORS_ALLOW_ALL=true in env)
+const useAllowAllCors = String(process.env.CORS_ALLOW_ALL || '').toLowerCase() === 'true';
+const selectedCors = useAllowAllCors ? cors({ origin: true, credentials: true }) : cors(corsOptions);
+
+app.use(selectedCors);
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
+app.options('*', selectedCors);
+
+// Rate limiting (exclude image proxy which needs many concurrent requests)
+// NOTE: Must be applied after CORS so preflight isn't blocked and to avoid proxy header issues
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // increased limit for image-heavy app
+  message: 'Too many requests from this IP, please try again later.',
+  skip: (req) => {
+    // Skip rate limiting for image proxy
+    return req.path.startsWith('/api/images/proxy');
+  }
+});
+app.use('/api/', limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
