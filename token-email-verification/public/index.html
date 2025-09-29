@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .links {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 0.5rem;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .profile-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .profile-info h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-info p {
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-unverified {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="header">
+                <h1>Welcome Back</h1>
+                <p>Sign in to your account</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn">Sign In</button>
+            </form>
+            <div class="loading" id="loginLoading">
+                <div class="spinner"></div>
+                <p>Signing in...</p>
+            </div>
+            <div class="message" id="loginMessage"></div>
+            <div class="links">
+                <a href="#" onclick="showPage('registerPage')">Create Account</a>
+                <a href="#" onclick="showPage('forgotPasswordPage')">Forgot Password?</a>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="registerPage" class="page">
+            <div class="header">
+                <h1>Create Account</h1>
+                <p>Join us today</p>
+            </div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerName">Full Name</label>
+                    <input type="text" id="registerName" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <button type="submit" class="btn">Create Account</button>
+            </form>
+            <div class="loading" id="registerLoading">
+                <div class="spinner"></div>
+                <p>Creating account...</p>
+            </div>
+            <div class="message" id="registerMessage"></div>
+            <div class="links">
+                <a href="#" onclick="showPage('loginPage')">Already have an account? Sign In</a>
+            </div>
+        </div>
+
+        <!-- Forgot Password Page -->
+        <div id="forgotPasswordPage" class="page">
+            <div class="header">
+                <h1>Forgot Password</h1>
+                <p>Enter your email to reset your password</p>
+            </div>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">Email</label>
+                    <input type="email" id="forgotEmail" required>
+                </div>
+                <button type="submit" class="btn">Send Reset Email</button>
+            </form>
+            <div class="loading" id="forgotPasswordLoading">
+                <div class="spinner"></div>
+                <p>Sending reset email...</p>
+            </div>
+            <div class="message" id="forgotPasswordMessage"></div>
+            <div class="links">
+                <a href="#" onclick="showPage('loginPage')">Back to Sign In</a>
+            </div>
+        </div>
+
+        <!-- Reset Password Page -->
+        <div id="resetPasswordPage" class="page">
+            <div class="header">
+                <h1>Reset Password</h1>
+                <p>Enter your new password</p>
+            </div>
+            <form id="resetPasswordForm">
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn">Reset Password</button>
+            </form>
+            <div class="loading" id="resetPasswordLoading">
+                <div class="spinner"></div>
+                <p>Resetting password...</p>
+            </div>
+            <div class="message" id="resetPasswordMessage"></div>
+            <div class="links">
+                <a href="#" onclick="showPage('loginPage')">Back to Sign In</a>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="page">
+            <div class="header">
+                <h1>Dashboard</h1>
+                <p>Welcome to your account</p>
+            </div>
+            <div class="profile-info" id="profileInfo">
+                <!-- Profile information will be loaded here -->
+            </div>
+            <button class="btn" onclick="resendVerification()" id="resendBtn" style="display: none;">
+                Resend Verification Email
+            </button>
+            <button class="btn" onclick="logout()" style="background: #dc3545; margin-top: 1rem;">
+                Logout
+            </button>
+            <div class="loading" id="dashboardLoading">
+                <div class="spinner"></div>
+                <p>Loading profile...</p>
+            </div>
+            <div class="message" id="dashboardMessage"></div>
+        </div>
+
+        <!-- Verification Status Page -->
+        <div id="verificationPage" class="page">
+            <div class="header">
+                <h1>Email Verification</h1>
+                <p>Verifying your email address...</p>
+            </div>
+            <div class="loading" id="verificationLoading">
+                <div class="spinner"></div>
+                <p>Verifying email...</p>
+            </div>
+            <div class="message" id="verificationMessage"></div>
+            <div class="links">
+                <a href="#" onclick="showPage('loginPage')">Go to Sign In</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let currentUser = null;
+        let authToken = localStorage.getItem('authToken');
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is already logged in
+            if (authToken) {
+                loadUserProfile();
+            }
+
+            // Check for verification token in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const verifyToken = urlParams.get('verify');
+            if (verifyToken) {
+                verifyEmail(verifyToken);
+            }
+
+            // Check for reset token in URL
+            const resetToken = urlParams.get('reset');
+            if (resetToken) {
+                showResetPasswordPage(resetToken);
+            }
+
+            // Add form event listeners
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+            document.getElementById('resetPasswordForm').addEventListener('submit', handleResetPassword);
+        });
+
+        // Show specific page
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        // Show/hide loading
+        function showLoading(loadingId, show = true) {
+            const loading = document.getElementById(loadingId);
+            if (loading) {
+                loading.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        // Show message
+        function showMessage(messageId, text, type = 'info') {
+            const messageEl = document.getElementById(messageId);
+            if (messageEl) {
+                messageEl.textContent = text;
+                messageEl.className = `message ${type}`;
+                messageEl.style.display = 'block';
+            }
+        }
+
+        // Clear message
+        function clearMessage(messageId) {
+            const messageEl = document.getElementById(messageId);
+            if (messageEl) {
+                messageEl.style.display = 'none';
+            }
+        }
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            showLoading('loginLoading');
+            clearMessage('loginMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    authToken = data.data.token;
+                    currentUser = data.data.user;
+                    localStorage.setItem('authToken', authToken);
+                    
+                    showMessage('loginMessage', 'Login successful!', 'success');
+                    setTimeout(() => {
+                        showPage('dashboardPage');
+                        loadUserProfile();
+                    }, 1000);
+                } else {
+                    showMessage('loginMessage', data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('loginMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('loginLoading', false);
+            }
+        }
+
+        // Handle register
+        async function handleRegister(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            showLoading('registerLoading');
+            clearMessage('registerMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('registerMessage', 'Registration successful! Please check your email for verification.', 'success');
+                    setTimeout(() => {
+                        showPage('loginPage');
+                    }, 3000);
+                } else {
+                    let errorMessage = data.message || 'Registration failed';
+                    if (data.errors && data.errors.length > 0) {
+                        errorMessage = data.errors.map(err => err.msg).join(', ');
+                    }
+                    showMessage('registerMessage', errorMessage, 'error');
+                }
+            } catch (error) {
+                showMessage('registerMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('registerLoading', false);
+            }
+        }
+
+        // Handle forgot password
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('forgotEmail').value;
+
+            showLoading('forgotPasswordLoading');
+            clearMessage('forgotPasswordMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('forgotPasswordMessage', 'Password reset email sent! Check your inbox.', 'success');
+                } else {
+                    showMessage('forgotPasswordMessage', data.message || 'Failed to send reset email', 'error');
+                }
+            } catch (error) {
+                showMessage('forgotPasswordMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('forgotPasswordLoading', false);
+            }
+        }
+
+        // Handle reset password
+        async function handleResetPassword(e) {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                showMessage('resetPasswordMessage', 'Passwords do not match', 'error');
+                return;
+            }
+
+            const resetToken = new URLSearchParams(window.location.search).get('reset');
+            if (!resetToken) {
+                showMessage('resetPasswordMessage', 'Invalid reset token', 'error');
+                return;
+            }
+
+            showLoading('resetPasswordLoading');
+            clearMessage('resetPasswordMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/reset-password/${resetToken}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: newPassword })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('resetPasswordMessage', 'Password reset successful! You can now sign in.', 'success');
+                    setTimeout(() => {
+                        showPage('loginPage');
+                        // Clear URL parameters
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }, 3000);
+                } else {
+                    showMessage('resetPasswordMessage', data.message || 'Failed to reset password', 'error');
+                }
+            } catch (error) {
+                showMessage('resetPasswordMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('resetPasswordLoading', false);
+            }
+        }
+
+        // Load user profile
+        async function loadUserProfile() {
+            if (!authToken) return;
+
+            showLoading('dashboardLoading');
+            clearMessage('dashboardMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.data.user;
+                    displayUserProfile(currentUser);
+                    showPage('dashboardPage');
+                } else {
+                    logout();
+                }
+            } catch (error) {
+                showMessage('dashboardMessage', 'Failed to load profile', 'error');
+            } finally {
+                showLoading('dashboardLoading', false);
+            }
+        }
+
+        // Display user profile
+        function displayUserProfile(user) {
+            const profileInfo = document.getElementById('profileInfo');
+            const resendBtn = document.getElementById('resendBtn');
+            
+            profileInfo.innerHTML = `
+                <h3>Profile Information</h3>
+                <p><strong>Name:</strong> ${user.name}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Role:</strong> ${user.role}</p>
+                <p><strong>Status:</strong> 
+                    <span class="status-badge ${user.isVerified ? 'status-verified' : 'status-unverified'}">
+                        ${user.isVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                </p>
+                <p><strong>Member Since:</strong> ${new Date(user.createdAt).toLocaleDateString()}</p>
+                ${user.lastLogin ? `<p><strong>Last Login:</strong> ${new Date(user.lastLogin).toLocaleString()}</p>` : ''}
+            `;
+
+            // Show resend verification button if user is not verified
+            if (!user.isVerified) {
+                resendBtn.style.display = 'block';
+            } else {
+                resendBtn.style.display = 'none';
+            }
+        }
+
+        // Resend verification email
+        async function resendVerification() {
+            if (!authToken) return;
+
+            showLoading('dashboardLoading');
+            clearMessage('dashboardMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/resend-verification`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('dashboardMessage', 'Verification email sent! Check your inbox.', 'success');
+                } else {
+                    showMessage('dashboardMessage', data.message || 'Failed to send verification email', 'error');
+                }
+            } catch (error) {
+                showMessage('dashboardMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('dashboardLoading', false);
+            }
+        }
+
+        // Verify email
+        async function verifyEmail(token) {
+            showPage('verificationPage');
+            showLoading('verificationLoading');
+            clearMessage('verificationMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/verify/${token}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('verificationMessage', 'Email verified successfully! You can now sign in.', 'success');
+                    // Clear URL parameters
+                    setTimeout(() => {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        showPage('loginPage');
+                    }, 3000);
+                } else {
+                    showMessage('verificationMessage', data.message || 'Email verification failed', 'error');
+                }
+            } catch (error) {
+                showMessage('verificationMessage', 'Network error. Please try again.', 'error');
+            } finally {
+                showLoading('verificationLoading', false);
+            }
+        }
+
+        // Show reset password page
+        function showResetPasswordPage(token) {
+            showPage('resetPasswordPage');
+        }
+
+        // Logout
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            showPage('loginPage');
+        }
+    </script>
+</body>
+</html>

@@ -9,7 +9,7 @@
     "dev": "nodemon server.js",
     "seed": "node scripts/seedData.js",
     "test": "jest",
-  "fetch-images": "node scripts/fetch_from_pixabay_api.js",
+    "fetch-images": "node scripts/fetch_from_pixabay_api.js",
     "cache-images-from-catalog": "node scripts/cacheImagesFromCatalog.js",
     "image-server": "node server-enhanced.js",
     "test-images": "node scripts/imageDemo.js"
@@ -43,7 +43,6 @@
     "node-cron": "^3.0.2",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.4",
-    "resend": "^3.4.0",
     "razorpay": "^2.9.2",
     "redis": "^4.6.7",
     "stripe": "^14.12.0"

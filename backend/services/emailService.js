@@ -1,100 +1,81 @@
 const nodemailer = require('nodemailer');
-// Resend official SDK (preferred on Render)
-let ResendSDK = null;
-try {
-  ResendSDK = require('resend').Resend;
-} catch (_) {
-  ResendSDK = null;
-}
 
-// Config
-const useResend = !!process.env.RESEND_API_KEY && !!ResendSDK; // Recommended on platforms that block SMTP
-const useSmtp = !!process.env.SMTP_HOST; // Explicit SMTP
-const useGmail = !useResend && !useSmtp; // Fallback to Gmail creds if provided
+// Determine transport: explicit SMTP if provided, otherwise Gmail service
+const useSmtp = !!process.env.SMTP_HOST;
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_EMAIL;
 
-// Create nodemailer transporter only if using SMTP/Gmail
-let transporter = null;
-if (!useResend) {
-  transporter = nodemailer.createTransport(
-    useSmtp
-      ? {
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: Number(process.env.SMTP_PORT || 587) === 465, // automatic: 465 -> SMTPS, else STARTTLS
-          auth: {
-            user: process.env.EMAIL_USER || process.env.SMTP_EMAIL,
-            pass: process.env.EMAIL_PASS || process.env.SMTP_PASSWORD,
-          },
-          // Keep aggressive timeouts to avoid 4-6 minute hangs
-          connectionTimeout: 5000,
-          greetingTimeout: 5000,
-          socketTimeout: 8000,
-        }
-      : {
-          service: 'gmail',
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-          connectionTimeout: 5000,
-          greetingTimeout: 5000,
-          socketTimeout: 8000,
-        }
-  );
+const transporter = nodemailer.createTransport(
+  useSmtp
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: Number(process.env.SMTP_PORT || 587) === 465,
+        auth: {
+          user: process.env.EMAIL_USER || process.env.SMTP_EMAIL,
+          pass: process.env.EMAIL_PASS || process.env.SMTP_PASSWORD,
+        },
+        // Keep aggressive timeouts to avoid 4-6 minute hangs
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000,
+        // Match token-email-verification defaults
+        tls: { rejectUnauthorized: false },
+      }
+    : {
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000,
+        tls: { rejectUnauthorized: false },
+      }
+);
 
-  // On boot, verify transporter (skip if Resend is configured)
-  transporter
-    .verify()
-    .then(() => {
-      console.log(
-        `✉️  Email transporter ready via ${useSmtp ? 'SMTP' : 'Gmail'} as ${
-          (process.env.EMAIL_USER || process.env.SMTP_EMAIL || '').split('@')[0]
-        }@***`
-      );
-    })
-    .catch((err) => {
-      console.error('✉️  Email transporter verification failed:', err.message);
-    });
-}
+// On boot, verify transporter
+transporter
+  .verify()
+  .then(() => {
+    console.log(
+      `✉️  Email transporter ready via ${useSmtp ? 'SMTP' : 'Gmail'} as ${
+        (process.env.EMAIL_USER || process.env.SMTP_EMAIL || '').split('@')[0]
+      }@***`
+    );
+  })
+  .catch((err) => {
+    console.error('✉️  Email transporter verification failed:', err.message);
+  });
 
 function getEmailProviderInfo() {
   return {
-    provider: useResend ? 'resend' : (useSmtp ? 'smtp' : (useGmail ? 'gmail' : 'none')),
-    from: EMAIL_FROM || ''
+    provider: useSmtp ? 'smtp' : 'gmail',
+    from: EMAIL_FROM || '',
   };
 }
 
-// Startup info
-(() => {
-  const info = getEmailProviderInfo();
-  if (info.provider === 'resend') {
-    console.log(`✉️  Email: using Resend API as ${info.from || '(no from set)'}`);
-  } else if (info.provider === 'smtp') {
-    console.log(`✉️  Email: using SMTP (${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}) as ${info.from || '(no from set)'}`);
-  } else if (info.provider === 'gmail') {
-    console.log(`✉️  Email: using Gmail as ${info.from || '(no from set)'}`);
-  } else {
-    console.warn('✉️  Email: no provider configured. Set RESEND_API_KEY (recommended) or EMAIL_USER/EMAIL_PASS (or SMTP_*).');
-  }
-})();
-
-async function sendViaResend(to, subject, html) {
-  if (!useResend) throw new Error('Resend not configured');
-  const client = new ResendSDK(process.env.RESEND_API_KEY);
-  const { error } = await client.emails.send({ from: EMAIL_FROM, to, subject, html });
-  if (error) throw new Error(`Resend API error: ${error.message || String(error)}`);
-}
-
 async function sendViaNodemailer(to, subject, html) {
-  if (!transporter) throw new Error('Email transporter not configured');
+  const fromValue = /<.+@.+>/.test(EMAIL_FROM || '') || /.+@.+\..+/.test(EMAIL_FROM || '')
+    ? EMAIL_FROM
+    : process.env.EMAIL_USER;
   const mailOptions = {
-    from: `SmartCart <${EMAIL_FROM}>`,
+    from: fromValue,
     to,
     subject,
     html,
   };
-  await transporter.sendMail(mailOptions);
+  const maskedTo = Array.isArray(to) ? to.map(maskEmail).join(',') : maskEmail(String(to || ''));
+  console.log(`✉️  [Email] Sending to ${maskedTo} • subject="${subject}"`);
+  try {
+    const result = await transporter.sendMail(mailOptions);
+    const msgId = result && (result.messageId || result.response || 'sent');
+    console.log(`✅ [Email] Sent to ${maskedTo} • id=${msgId}`);
+    return result;
+  } catch (err) {
+    console.error(`❌ [Email] Failed to send to ${maskedTo}: ${err.message}`);
+    throw err;
+  }
 }
 
 async function sendVerificationEmail(to, verifyUrl) {
@@ -109,11 +90,6 @@ async function sendVerificationEmail(to, verifyUrl) {
     </div>
   `;
 
-  // Prefer Resend API if configured; else fall back to Nodemailer
-  if (useResend) {
-    await sendViaResend(to, subject, html);
-    return;
-  }
   await sendViaNodemailer(to, subject, html);
 }
 
@@ -121,3 +97,15 @@ module.exports = {
   sendVerificationEmail,
   getEmailProviderInfo,
 };
+
+// Helpers
+function maskEmail(email) {
+  try {
+    const [user, domain] = email.split('@');
+    if (!user || !domain) return '***@***';
+    const u = user.length <= 2 ? user[0] + '*' : user[0] + '***' + user[user.length - 1];
+    return `${u}@${domain}`;
+  } catch {
+    return '***@***';
+  }
+}

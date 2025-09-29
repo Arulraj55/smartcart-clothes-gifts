@@ -31,10 +31,10 @@ router.post('/register', async (req, res) => {
   try {
   const { name, email, password } = req.body;
   const normalizedEmail = (email || '').trim().toLowerCase();
-    // If a fully-verified user already exists, block
+    // If any user already exists (verified or not), do NOT send mail here — instruct to login
     const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    if (existingUser) {
+      return res.status(200).json({ success: false, message: 'Account already exists. Please login to continue.' });
     }
 
     // If an unverified legacy user exists, we won't create a second User.
@@ -65,9 +65,8 @@ router.post('/register', async (req, res) => {
     startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
 
     // 202 Accepted clearly communicates “pending verification”
-    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-    const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
-    const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
+  const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+  const devPayload = exposeDev ? { devVerifyUrl: verifyUrl } : {};
     res.status(202).json({
       success: true,
       message: 'We sent (or are sending) a verification email. Please check your inbox.',
@@ -95,55 +94,36 @@ router.post('/login', async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
-      // If there's a pending pre-registration, resend verification email and instruct verification
-      const pending = await RegistrationToken.findOne({ email: normalizedEmail, expiresAt: { $gt: new Date() } });
-      if (pending) {
-        const plainToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
-        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
-        await RegistrationToken.updateOne({ _id: pending._id }, { $set: { tokenHash, expiresAt } });
-        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
-  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-        console.log('Login pending verification link:', verifyUrl);
-        // Background resend (non-blocking)
-        startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
-        const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-        const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
-        const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
-        return res.status(403).json({ success: false, message: 'Registration pending. We sent you a fresh verification link.', pendingVerification: true, ...devPayload });
-      }
-      // No user and no pending registration: instruct to register (do not send any email)
+      // No user: instruct to register (do not send any email)
       return res.status(404).json({ success: false, message: 'No account found for this email. Please register first.' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
-    }
-
+    // If user exists but is NOT verified, always send verification email (don't block on password)
     if (!user.isEmailVerified) {
-      // Legacy unverified user - issue a new token and send verification email
+      // Always generate and send a fresh verification link on login for existing users
       const plainToken = crypto.randomBytes(32).toString('hex');
       user.emailVerificationToken = crypto.createHash('sha256').update(plainToken).digest('hex');
       user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
       await user.save();
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
-  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-      console.log('Login legacy verification link:', verifyUrl);
-      // Background resend (non-blocking)
+      const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+      const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+      console.log('Login: generated new verification link');
+      // Background send (non-blocking)
       startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
-      const exposeDev2 = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-      const isProd2 = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
-      const devPayload2 = (!isProd2 || exposeDev2) ? { devVerifyUrl: verifyUrl } : {};
-      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a new verification email.', pendingVerification: true, ...devPayload2 });
+  const exposeDev2 = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+  const devPayload2 = exposeDev2 ? { devVerifyUrl: verifyUrl } : {};
+      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a verification email.', pendingVerification: true, ...devPayload2 });
+    }
+
+    // Verified user: now check password and login
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
     }
 
     // Create JWT token
@@ -182,42 +162,109 @@ router.get('/verify-email', async (req, res) => {
     }
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Preferred: find pre-registration token
-    const regToken = await RegistrationToken.findOne({ email: normalizedEmail, tokenHash, expiresAt: { $gt: new Date() } });
-
-    if (regToken) {
-      if (!regToken.passwordHash) {
+    // Preferred: find pre-registration token (check existence first to tailor error messaging)
+    const regTokenAny = await RegistrationToken.findOne({ email: normalizedEmail, tokenHash });
+    if (regTokenAny && regTokenAny.expiresAt > new Date()) {
+      if (!regTokenAny.passwordHash) {
         return res.status(400).json({ success: false, message: 'Verification cannot be completed. Please register again to set your password.' });
       }
       // Create or update the user as verified using pre-registered data
       let user = await User.findOne({ email: normalizedEmail });
       if (!user) {
-        user = new User({ name: regToken.name, email: normalizedEmail, password: regToken.passwordHash, isEmailVerified: true });
+        user = new User({ name: regTokenAny.name, email: normalizedEmail, password: regTokenAny.passwordHash, isEmailVerified: true });
       } else {
         // Legacy unverified user path: update password and mark verified
-        user.password = regToken.passwordHash;
+        user.password = regTokenAny.passwordHash;
         user.isEmailVerified = true;
         user.emailVerificationToken = undefined;
         user.emailVerificationExpires = undefined;
       }
       await user.save();
-      await RegistrationToken.deleteOne({ _id: regToken._id });
+      await RegistrationToken.deleteOne({ _id: regTokenAny._id });
       return res.json({ success: true, message: 'Email verified successfully' });
+    }
+    // If we found a matching pre-registration token but it's expired, return tailored message
+    if (regTokenAny && !(regTokenAny.expiresAt > new Date())) {
+      return res.status(400).json({ success: false, message: 'Verification link expired. Please resend a new verification email.', canResend: true, email: normalizedEmail });
     }
 
     // Fallback: legacy flow where token was stored on User
-    const legacyUser = await User.findOne({ email: normalizedEmail, emailVerificationToken: tokenHash, emailVerificationExpires: { $gt: new Date() } });
-    if (legacyUser) {
-      legacyUser.isEmailVerified = true;
-      legacyUser.emailVerificationToken = undefined;
-      legacyUser.emailVerificationExpires = undefined;
-      await legacyUser.save();
+    const legacyAny = await User.findOne({ email: normalizedEmail, emailVerificationToken: tokenHash });
+    if (legacyAny) {
+      if (legacyAny.emailVerificationExpires && legacyAny.emailVerificationExpires > new Date()) {
+        legacyAny.isEmailVerified = true;
+        legacyAny.emailVerificationToken = undefined;
+        legacyAny.emailVerificationExpires = undefined;
+        await legacyAny.save();
+        return res.json({ success: true, message: 'Email verified successfully' });
+      }
+      return res.status(400).json({ success: false, message: 'Verification link expired. Please resend a new verification email.', canResend: true, email: normalizedEmail });
+    }
+
+    // If no token match but the user for this email is already verified, treat as success (idempotent)
+    const already = await User.findOne({ email: normalizedEmail, isEmailVerified: true });
+    if (already) {
+      return res.json({ success: true, message: 'Email already verified' });
+    }
+    return res.status(400).json({ success: false, message: 'Verification link is invalid or expired', canResend: true, email: normalizedEmail });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({ success: false, message: 'Server error verifying email', error: error.message });
+  }
+});
+
+// @route   GET /api/auth/verify/:token
+// @desc    Verify email using token (no email param required)
+// @access  Public
+router.get('/verify/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Invalid verification link' });
+    }
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Try pre-registration token by tokenHash only (check existence first)
+    const regTokenAny = await RegistrationToken.findOne({ tokenHash });
+    if (regTokenAny) {
+      const normalizedEmail = (regTokenAny.email || '').trim().toLowerCase();
+      if (!(regTokenAny.expiresAt > new Date())) {
+        return res.status(400).json({ success: false, message: 'Verification link expired. Please resend a new verification email.', canResend: true, email: normalizedEmail });
+      }
+      if (!regTokenAny.passwordHash) {
+        return res.status(400).json({ success: false, message: 'Verification cannot be completed. Please register again to set your password.' });
+      }
+      let user = await User.findOne({ email: normalizedEmail });
+      if (!user) {
+        user = new User({ name: regTokenAny.name, email: normalizedEmail, password: regTokenAny.passwordHash, isEmailVerified: true });
+      } else {
+        user.password = regTokenAny.passwordHash;
+        user.isEmailVerified = true;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+      }
+      await user.save();
+      await RegistrationToken.deleteOne({ _id: regTokenAny._id });
       return res.json({ success: true, message: 'Email verified successfully' });
     }
 
-    return res.status(400).json({ success: false, message: 'Verification link is invalid or expired' });
+    // Fallback: legacy user token path (check existence first)
+    const legacyAny = await User.findOne({ emailVerificationToken: tokenHash });
+    if (legacyAny) {
+      if (legacyAny.emailVerificationExpires && legacyAny.emailVerificationExpires > new Date()) {
+        legacyAny.isEmailVerified = true;
+        legacyAny.emailVerificationToken = undefined;
+        legacyAny.emailVerificationExpires = undefined;
+        await legacyAny.save();
+        return res.json({ success: true, message: 'Email verified successfully' });
+      }
+      return res.status(400).json({ success: false, message: 'Verification link expired. Please resend a new verification email.', canResend: true, email: legacyAny.email });
+    }
+
+  // If no token match but any user is already verified (rare without email), respond generically
+  return res.status(400).json({ success: false, message: 'Verification link is invalid or expired', canResend: true });
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error('Verify email (param) error:', error);
     res.status(500).json({ success: false, message: 'Server error verifying email', error: error.message });
   }
 });
@@ -260,9 +307,8 @@ router.post('/resend-verification', async (req, res) => {
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
     // Background resend (non-blocking)
     startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
-    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-    const isProd = (process.env.NODE_ENV && process.env.NODE_ENV.toLowerCase() === 'production');
-    const devPayload = (!isProd || exposeDev) ? { devVerifyUrl: verifyUrl } : {};
+  const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+  const devPayload = exposeDev ? { devVerifyUrl: verifyUrl } : {};
     res.json({ success: true, message: 'Verification email has been sent (or is being sent). Please check your inbox.', ...devPayload });
   } catch (error) {
     console.error('Resend verification error:', error);
