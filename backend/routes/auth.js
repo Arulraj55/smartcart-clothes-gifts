@@ -29,53 +29,48 @@ function startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl) {
 
 router.post('/register', async (req, res) => {
   try {
-  const { name, email, password } = req.body;
-  const normalizedEmail = (email || '').trim().toLowerCase();
+    const { name, email, password } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
     // If any user already exists (verified or not), do NOT send mail here — instruct to login
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(200).json({ success: false, message: 'Account already exists. Please login to continue.' });
     }
 
-    // If an unverified legacy user exists, we won't create a second User.
-    // We'll still proceed with token-based flow and overwrite their password upon verification.
-
-    // Hash the password now and store in a registration token document
+    // Create the user immediately so login doesn't depend on email verification
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
+    const user = new User({ name, email: normalizedEmail, password: passwordHash, isEmailVerified: false });
 
-    // Upsert a single active registration token per email
+    // Prepare a verification token (optional, does not block login)
     const plainToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+    user.emailVerificationToken = tokenHash;
+    user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
 
-    await RegistrationToken.findOneAndUpdate(
-      { email: normalizedEmail },
-      { email: normalizedEmail, name, passwordHash, tokenHash, expiresAt },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    await user.save();
 
     // Build verify URL
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
-  const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+    const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+    const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
     // Fire-and-forget email send (do not block the response)
     startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
 
-    // 202 Accepted clearly communicates “pending verification”
-  const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-  const devPayload = exposeDev ? { devVerifyUrl: verifyUrl } : {};
-    res.status(202).json({
+    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
+    const devPayload = exposeDev ? { devVerifyUrl: verifyUrl } : {};
+    return res.status(201).json({
       success: true,
-      message: 'We sent (or are sending) a verification email. Please check your inbox.',
+      message: 'Account created. We sent (or are sending) a verification email. You can login now.',
       pendingVerification: true,
       ...devPayload
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error during registration',
       error: error.message
@@ -88,8 +83,8 @@ router.post('/register', async (req, res) => {
 // @access  Public
 router.post('/login', async (req, res) => {
   try {
-  const { email, password } = req.body;
-  const normalizedEmail = (email || '').trim().toLowerCase();
+    const { email, password } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
 
     // Check if user exists
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
@@ -98,55 +93,30 @@ router.post('/login', async (req, res) => {
       return res.status(404).json({ success: false, message: 'No account found for this email. Please register first.' });
     }
 
-    // If user exists but is NOT verified, always send verification email (don't block on password)
-    if (!user.isEmailVerified) {
-      // Always generate and send a fresh verification link on login for existing users
-      const plainToken = crypto.randomBytes(32).toString('hex');
-      user.emailVerificationToken = crypto.createHash('sha256').update(plainToken).digest('hex');
-      user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
-      await user.save();
-      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-      const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
-      const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-      console.log('Login: generated new verification link');
-      // Background send (non-blocking)
-      startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
-  const exposeDev2 = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-  const devPayload2 = exposeDev2 ? { devVerifyUrl: verifyUrl } : {};
-      return res.status(403).json({ success: false, message: 'Email not verified. We sent you a verification email.', pendingVerification: true, ...devPayload2 });
-    }
-
-    // Verified user: now check password and login
+    // Verify password; email verification is NOT required for login per requirements
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid email or password' });
     }
 
     // Create JWT token
     const payload = { user: { id: user.id } };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: (process.env.JWT_EXPIRE || '30d').toString().trim() });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Login successful',
       token,
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        isEmailVerified: !!user.isEmailVerified
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Server error during login', error: error.message });
   }
 });
 
