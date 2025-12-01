@@ -190,9 +190,7 @@ const Cart = ({ cartItems = [], onUpdateQuantity, onRemoveItem, onCheckout, onCl
                         boxShadow: '0 8px 24px -8px rgba(0,0,0,0.1)'
                       }}>
                         <img
-                          src={(item.image || '').startsWith('http')
-                            ? `${(typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(item.image)}`
-                            : item.image}
+                          src={item.image || ''}
                           alt={item.name}
                           style={{ 
                             width: '100%', 

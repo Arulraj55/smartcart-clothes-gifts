@@ -127,9 +127,12 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:5000/api'
-          : '/api';
+        const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+        const API_BASE_URL = explicitBase
+          ? explicitBase
+          : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000/api'
+            : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
 
   // 1) Create order in backend (only if we intend to pay)
         const orderPayload = {

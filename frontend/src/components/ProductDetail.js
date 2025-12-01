@@ -46,9 +46,8 @@ const ProductDetail = ({ product, onClose, onAddToCart, onBuyNow, isAuthenticate
   const images = product.images && product.images.length ? product.images : [product.image];
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const proxied = (url) => (url||'').startsWith('http')
-    ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(url)}`
-    : url;
+  // Use direct Pixabay URLs - no proxy needed
+  const proxied = (url) => url || '';
 
   return (
     <div className="product-detail-wrapper">

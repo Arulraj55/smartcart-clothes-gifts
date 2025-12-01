@@ -13,9 +13,12 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:5000/api'
-          : '/api';
+        const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+        const API_BASE_URL = explicitBase
+          ? explicitBase
+          : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000/api'
+            : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
 
         if (user && token) {
           // Fetch backend orders only
@@ -225,9 +228,7 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
                     <h4>📦 Items ({selectedOrder.items.length})</h4>
                     <div className="items-list-grid">
                       {selectedOrder.items.map((item,i)=>{
-                        const proxied = (item.image||'').startsWith('http')
-                          ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(item.image)}`
-                          : item.image;
+                        const proxied = item.image || '';
                         return (
                           <div className="itm" key={i}>
                             <div className="thumb-wrap"><img src={proxied} alt={item.name} /></div>
@@ -262,7 +263,8 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
                         if(!window.confirm('Cancel this order?')) return;
                         try {
                           const token = localStorage.getItem('token');
-                          const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/api' : '/api';
+                          const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+                          const API_BASE_URL = explicitBase ? explicitBase : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/api' : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
                           const res = await fetch(`${API_BASE_URL}/orders/cancel/${selectedOrder.id}`, { method:'PUT', headers:{ 'Authorization':`Bearer ${token}` }});
                           if(res.ok){ alert('Order cancelled.'); setSelectedOrder({ ...selectedOrder, status:'cancelled'}); } else { alert('Unable to cancel now.'); }
                         } catch { alert('Error cancelling order.'); }
