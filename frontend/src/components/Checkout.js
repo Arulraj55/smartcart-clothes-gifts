@@ -13,7 +13,7 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
       pincode: '',
       country: 'India'
     },
-    paymentMethod: 'stripe',
+    paymentMethod: 'cod',
     cardDetails: {
       cardNumber: '',
       expiryDate: '',
@@ -405,21 +405,6 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
         <div className="payment-method">
           <input
             type="radio"
-            id="stripe"
-            name="paymentMethod"
-            value="stripe"
-            checked={orderDetails.paymentMethod === 'stripe'}
-            onChange={(e) => handleInputChange('', 'paymentMethod', e.target.value)}
-          />
-          <label htmlFor="stripe">
-            <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=40&h=40&fit=crop" alt="Card" />
-            Credit/Debit Card
-          </label>
-        </div>
-        
-        <div className="payment-method">
-          <input
-            type="radio"
             id="razorpay"
             name="paymentMethod"
             value="razorpay"
@@ -428,7 +413,7 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
           />
           <label htmlFor="razorpay">
             <img src="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=40&h=40&fit=crop" alt="UPI/Wallets" />
-            UPI/Wallets
+            UPI/Wallets (Razorpay)
           </label>
         </div>
 
@@ -447,56 +432,6 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
           </label>
         </div>
       </div>
-
-      {orderDetails.paymentMethod === 'stripe' && (
-        <div className="card-details">
-          <div className="form-grid">
-            <div className="form-group full-width">
-              <label>Cardholder Name</label>
-              <input
-                type="text"
-                value={orderDetails.cardDetails.cardholderName}
-                onChange={(e) => handleInputChange('cardDetails', 'cardholderName', e.target.value)}
-                placeholder="Name on card"
-              />
-              {errors.payment?.cardholderName && <div className="error-text">{errors.payment.cardholderName}</div>}
-            </div>
-            <div className="form-group full-width">
-              <label>Card Number</label>
-              <input
-                type="text"
-                value={orderDetails.cardDetails.cardNumber}
-                onChange={(e) => handleInputChange('cardDetails', 'cardNumber', e.target.value)}
-                placeholder="1234 5678 9012 3456"
-                maxLength="19"
-              />
-              {errors.payment?.cardNumber && <div className="error-text">{errors.payment.cardNumber}</div>}
-            </div>
-            <div className="form-group">
-              <label>Expiry Date</label>
-              <input
-                type="text"
-                value={orderDetails.cardDetails.expiryDate}
-                onChange={(e) => handleInputChange('cardDetails', 'expiryDate', e.target.value)}
-                placeholder="MM/YY"
-                maxLength="5"
-              />
-              {errors.payment?.expiryDate && <div className="error-text">{errors.payment.expiryDate}</div>}
-            </div>
-            <div className="form-group">
-              <label>CVV</label>
-              <input
-                type="text"
-                value={orderDetails.cardDetails.cvv}
-                onChange={(e) => handleInputChange('cardDetails', 'cvv', e.target.value)}
-                placeholder="123"
-                maxLength="3"
-              />
-              {errors.payment?.cvv && <div className="error-text">{errors.payment.cvv}</div>}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -507,9 +442,7 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
         {cartItems.map(item => (
           <div key={item.id} className="order-item">
             <img 
-              src={(item.image || '').startsWith('http') 
-                ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(item.image)}` 
-                : item.image} 
+              src={item.image || ''} 
               alt={item.name} 
             />
             <div className="item-details">
@@ -562,9 +495,7 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
             <div className="detail-section">
               <h4>Payment Method</h4>
               <p>
-                {orderDetails.paymentMethod === 'stripe'
-                  ? 'Credit/Debit Card'
-                  : orderDetails.paymentMethod === 'razorpay'
+                {orderDetails.paymentMethod === 'razorpay'
                   ? 'UPI/Wallets'
                   : 'Cash on Delivery'}
               </p>

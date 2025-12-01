@@ -283,42 +283,33 @@ const AppContent = () => {
     return top;
   }, [allDisplayableProducts, userPreferenceData, wishlistSet, cartIdSet, recentlyViewed, suggestedSeed]);
 
-  // Static first row: 4 specific products (Palazzo Pants Variant, Anarkali Suit, Hand-painted tea set, Personalized mug)
-  const staticFirstRow = useMemo(() => {
-    const palazzo = clothingCatalog.find(p => p.id === 838 && p.name === 'Palazzo Pants Variant');
-    const anarkali = clothingCatalog.find(p => p.id === 4 && p.name === 'Anarkali Suit');
-    const teaSet = giftsCatalog.find(p => p.id === 119 && p.name === 'Hand-painted tea set');
-    const mug = giftsCatalog.find(p => p.id === 1 && p.name === 'Personalized mug');
-    return [palazzo, anarkali, teaSet, mug].filter(Boolean);
-  }, []);
-
-  // Suggested (random 8 clothes + 8 gifts for remaining 4 rows, interleaved 2-2 pattern)
+  // Suggested (random 10 clothes + 10 gifts, interleaved 2-2 pattern)
   const suggestedClothes = useMemo(() => {
     const seed = suggestedSeed || 0;
-    const valid = clothingCatalog.filter(p => p.image && p.image.startsWith('http') && p.id !== 838 && p.id !== 4);
+    const valid = clothingCatalog.filter(p => p.image && p.image.startsWith('http'));
     const scored = valid.map((product, index) => {
       const numeric = typeof product.id === 'number' ? product.id : index;
       const value = Math.sin(seed + numeric * 17.23) * 10000;
       return { product, score: value - Math.floor(value) };
     });
     scored.sort((a, b) => b.score - a.score);
-    return scored.map(entry => entry.product).slice(0, 8);
+    return scored.map(entry => entry.product).slice(0, 10);
   }, [suggestedSeed]);
   const suggestedGifts = useMemo(() => {
     const seed = suggestedSeed || 0;
-    const valid = giftsCatalog.filter(p => p.image && p.image.startsWith('http') && p.id !== 119 && p.id !== 1);
+    const valid = giftsCatalog.filter(p => p.image && p.image.startsWith('http'));
     const scored = valid.map((product, index) => {
       const numeric = typeof product.id === 'number' ? product.id : index;
       const value = Math.sin(seed + numeric * 19.07) * 10000;
       return { product, score: value - Math.floor(value) };
     });
     scored.sort((a, b) => b.score - a.score);
-    return scored.map(entry => entry.product).slice(0, 8);
+    return scored.map(entry => entry.product).slice(0, 10);
   }, [suggestedSeed]);
 
-  // Interleave: 2 clothes, 2 gifts, repeat (4 rows of 4 items = 16 total)
+  // Interleave: 2 clothes, 2 gifts, repeat (5 rows of 4 items = 20 total)
   const suggestionsToRender = useMemo(() => {
-    const interleaved = [...staticFirstRow]; // Start with static row
+    const interleaved = [];
     const clothesCount = suggestedClothes.length;
     const giftsCount = suggestedGifts.length;
     let ci = 0, gi = 0;
@@ -331,7 +322,7 @@ const AppContent = () => {
       if (gi < giftsCount) interleaved.push(suggestedGifts[gi++]);
     }
     return interleaved;
-  }, [staticFirstRow, suggestedClothes, suggestedGifts]);
+  }, [suggestedClothes, suggestedGifts]);
   const previewSuggestions = suggestionsToRender;
 
   // Backend API base
