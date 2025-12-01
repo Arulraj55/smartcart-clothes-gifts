@@ -1,0 +1,68 @@
+:root {
+  --sc-color-bg: #ffffff;
+  --sc-color-surface: #ffffff;
+  --sc-color-border: #e5e7eb;
+  --sc-color-text: #111827;
+  --sc-color-text-dim: #6b7280;
+  --sc-color-primary: #ff3f6c; /* Myntra-like accent */
+  --sc-color-primary-hover: #e13258;
+  --sc-color-accent: #ff905a;
+  --sc-color-accent-hover: #f27332;
+  --sc-color-hero-from: #ffe2ec;
+  --sc-color-hero-to: #fff8f9;
+  --sc-radius-sm: 4px;
+  --sc-radius-md: 10px;
+  --sc-radius-lg: 18px;
+  --sc-shadow-sm: 0 2px 4px rgba(0,0,0,0.06);
+  --sc-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --sc-shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.sc-container { max-width: 1280px; margin: 0 auto; padding: 0 1.25rem; }
+
+.sc-btn-primary { background: var(--sc-color-primary); color:#fff; font-weight:600; padding:0.75rem 1.5rem; border:none; border-radius:var(--sc-radius-md); cursor:pointer; transition:background .25s; }
+.sc-btn-primary:hover { background: var(--sc-color-primary-hover); }
+
+.sc-badge { background: var(--sc-color-primary); color:#fff; padding:0.25rem 0.6rem; font-size:0.65rem; border-radius:9999px; letter-spacing:.5px; font-weight:600; }
+
+.sc-card { background:var(--sc-color-surface); border:1px solid var(--sc-color-border); border-radius:var(--sc-radius-lg); padding:1rem; position:relative; box-shadow:var(--sc-shadow-sm); transition:box-shadow .25s, transform .25s; }
+.sc-card:hover { box-shadow:var(--sc-shadow-lg); transform:translateY(-4px); }
+
+.sc-price { font-weight:700; font-size:1.05rem; color:var(--sc-color-text); }
+.sc-price-strike { font-size:0.8rem; text-decoration:line-through; color:var(--sc-color-text-dim); margin-left:0.35rem; }
+
+.sc-color-dot { width:14px; height:14px; border-radius:50%; border:1px solid #d1d5db; }
+
+.sc-hero-gradient { background:linear-gradient(90deg, var(--sc-color-hero-from), var(--sc-color-hero-to)); }
+
+/* Collection layouts */
+.sc-collection-wrapper { max-width: 1320px; margin: 0 auto; padding: 0 1.25rem; }
+.sc-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1.75rem; }
+@media (max-width:1200px){ .sc-grid-4 { grid-template-columns:repeat(3,1fr);} }
+@media (max-width:900px){ .sc-grid-4 { grid-template-columns:repeat(2,1fr);} }
+@media (max-width:560px){ .sc-grid-4 { grid-template-columns:repeat(1,1fr);} }
+
+.sc-collection-heading { text-align:center; }
+.sc-collection-heading h1 { font-size:2.5rem; font-weight:800; letter-spacing:-.5px; margin:0; color:#111827; }
+.sc-collection-heading h2 { font-size:1.9rem; font-weight:700; margin:.4rem 0 0; color:#111827; }
+.sc-collection-heading p { margin:.75rem 0 0; font-size:.95rem; color:#6b7280; }
+.sc-collection-heading .sc-meta { font-size:.7rem; letter-spacing:.6px; color:#9ca3af; margin-top:.45rem; font-weight:600; }
+
+/* Category tiles on homepage - 4 per row centered */
+.sc-home-cat-grid { display:grid; gap:1.5rem; grid-template-columns:repeat(4,1fr); }
+@media (max-width:1100px){ .sc-home-cat-grid { grid-template-columns:repeat(3,1fr);} }
+@media (max-width:820px){ .sc-home-cat-grid { grid-template-columns:repeat(2,1fr);} }
+@media (max-width:520px){ .sc-home-cat-grid { grid-template-columns:repeat(1,1fr);} }
+
+/* Generic 4-column fixed grid (cards) */
+.sc-grid-fixed-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1.75rem; }
+@media (max-width:1150px){ .sc-grid-fixed-4 { grid-template-columns:repeat(3,1fr);} }
+@media (max-width:860px){ .sc-grid-fixed-4 { grid-template-columns:repeat(2,1fr);} }
+@media (max-width:560px){ .sc-grid-fixed-4 { grid-template-columns:repeat(1,1fr);} }
+
+.sc-cat-tile { position:relative; border-radius:18px; overflow:hidden; background:#f3f4f6; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:transform .4s, box-shadow .4s; aspect-ratio:4/5; }
+.sc-cat-tile img { width:100%; height:100%; object-fit:cover; display:block; }
+.sc-cat-tile:hover { transform:translateY(-4px); box-shadow:0 8px 28px rgba(0,0,0,0.12); }
+.sc-cat-label { position:absolute; left:12px; bottom:12px; right:12px; display:flex; justify-content:space-between; align-items:center; }
+.sc-cat-label span { font-size:.85rem; font-weight:600; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.4); }
+.sc-cat-chip { font-size:.55rem; letter-spacing:.8px; padding:4px 8px; border-radius:9999px; background:rgba(255,255,255,.22); color:#fff; font-weight:600; }

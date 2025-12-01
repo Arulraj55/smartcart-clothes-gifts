@@ -5,68 +5,43 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RegistrationToken = require('../models/RegistrationToken');
 const crypto = require('crypto');
-const { sendVerificationEmail } = require('../services/emailService');
 const { auth } = require('../middleware/auth');
 
 // @route   POST /api/auth/register
-// @desc    Register user
+// @desc    Register user (simple - no email verification)
 // @access  Public
-// Helper: kick off email sending in background (non-blocking)
-function startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl) {
-  (async () => {
-    try {
-      await sendVerificationEmail(normalizedEmail, verifyUrl);
-    } catch (e1) {
-      console.error('sendVerificationEmail failed (pre-registration). Trying API link fallback:', e1.message);
-      try {
-        await sendVerificationEmail(normalizedEmail, apiVerifyUrl);
-      } catch (e2) {
-        console.error('Fallback sendVerificationEmail also failed:', e2.message);
-      }
-    }
-  })();
-}
-
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const normalizedEmail = (email || '').trim().toLowerCase();
 
-    // If any user already exists (verified or not), do NOT send mail here — instruct to login
+    // If any user already exists, instruct to login
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(200).json({ success: false, message: 'Account already exists. Please login to continue.' });
     }
 
-    // Create the user immediately so login doesn't depend on email verification
+    // Create the user immediately (no email verification required)
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
-    const user = new User({ name, email: normalizedEmail, password: passwordHash, isEmailVerified: false });
-
-    // Prepare a verification token (optional, does not block login)
-    const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
-    user.emailVerificationToken = tokenHash;
-    user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+    const user = new User({ name, email: normalizedEmail, password: passwordHash, isEmailVerified: true });
 
     await user.save();
 
-    // Build verify URL
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-    const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
-    const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
+    // Auto-login: Create JWT token immediately after registration
+    const payload = { user: { id: user.id } };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: (process.env.JWT_EXPIRE || '30d').toString().trim() });
 
-    // Fire-and-forget email send (do not block the response)
-    startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);
-
-    const exposeDev = String(process.env.EXPOSE_DEV_VERIFY_LINK || '').toLowerCase() === 'true';
-    const devPayload = exposeDev ? { devVerifyUrl: verifyUrl } : {};
     return res.status(201).json({
       success: true,
-      message: 'Account created. We sent (or are sending) a verification email. You can login now.',
-      pendingVerification: true,
-      ...devPayload
+      message: 'Account created successfully! You are now logged in.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isEmailVerified: true
+      }
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -315,5 +290,42 @@ router.post('/logout', auth, (req, res) => {
     message: 'Logout successful'
   });
 });
+
+// ----------------------------------------------------------------------------------
+// TEMP DEV ENDPOINTS (remove in production after confirming email delivery)
+// @route   POST /api/auth/test-email
+// @desc    Send a test email to verify SendGrid setup
+// @access  Public (DEV ONLY)
+router.post('/test-email', async (req, res) => {
+  try {
+    const { to } = req.body;
+    if (!to || !/.+@.+\..+/.test(to)) {
+      return res.status(400).json({ success: false, message: 'Valid "to" email required in body.' });
+    }
+    const testUrl = 'https://example.com/test-link';
+    await sendVerificationEmail(to, testUrl);
+    return res.json({ success: true, message: `Test email sent to ${to}` });
+  } catch (err) {
+    console.error('Test email error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send test email', error: err.message });
+  }
+});
+
+// GET variant for quick manual testing (e.g. in browser): /api/auth/test-email?to=someone@example.com
+router.get('/test-email', async (req, res) => {
+  try {
+    const { to } = req.query;
+    if (!to || !/.+@.+\..+/.test(String(to))) {
+      return res.status(400).json({ success: false, message: 'Provide a valid to query param, e.g. /api/auth/test-email?to=user@example.com' });
+    }
+    const testUrl = 'https://example.com/test-link';
+    await sendVerificationEmail(String(to), testUrl);
+    return res.json({ success: true, message: `Test email sent to ${to}` });
+  } catch (err) {
+    console.error('Test email (GET) error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send test email', error: err.message });
+  }
+});
+// ----------------------------------------------------------------------------------
 
 module.exports = router;

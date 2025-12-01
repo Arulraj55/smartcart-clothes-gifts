@@ -170,19 +170,17 @@ export const AuthProvider = ({ children }) => {
       console.log('Registration response:', data);
 
       if (data.success) {
-        // For email verification flow, backend returns pendingVerification: true and no token/user
-        if (data.pendingVerification) {
-          return { success: true, pendingVerification: true, message: data.message, devVerifyUrl: data.devVerifyUrl };
-        }
-        // Fallback: if backend ever returns token/user on register
+        // New simple flow: backend returns token/user directly on successful registration
         if (data.token && data.user) {
           setUser(data.user);
           setToken(data.token);
           localStorage.setItem('token', data.token);
+          return { success: true, message: data.message || 'Registration successful!' };
         }
-        return { success: true, message: data.message, pendingVerification: !!data.pendingVerification, devVerifyUrl: data.devVerifyUrl };
+        // Fallback for any other success case
+        return { success: true, message: data.message };
       } else {
-        return { success: false, message: data.message || 'Registration failed', pendingVerification: !!data.pendingVerification };
+        return { success: false, message: data.message || 'Registration failed' };
       }
     } catch (error) {
       console.error('Register error:', error);

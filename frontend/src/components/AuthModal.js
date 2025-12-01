@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode }) => {
+const AuthModal = ({ isOpen, onClose, onAuthSuccess, mode: initialMode = 'login', onSwitchMode }) => {
   const [mode, setMode] = useState(initialMode);
   const [formData, setFormData] = useState({
     name: '',
@@ -53,16 +53,14 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
         }
         
         const result = await register(formData.name, formData.email, formData.password);
-        if (result.success && result.pendingVerification) {
-          setPendingEmail(formData.email);
-          setSuccess('We\'ve sent a verification email. Please check your inbox and click the link to complete registration.');
-          if (result.devVerifyUrl) setDevVerifyUrl(result.devVerifyUrl);
-        } else if (result.success) {
-          setSuccess('Registration successful!');
-          setTimeout(() => { onClose(); }, 1500);
+        if (result.success) {
+          setSuccess('Registration successful! Welcome to SmartCart!');
+          setTimeout(() => { 
+            onClose(); 
+            if (onAuthSuccess) onAuthSuccess();
+          }, 1500);
         } else {
           setError(result.message);
-          if (result.pendingVerification) setPendingEmail(formData.email);
         }
       } else {
         const result = await login(formData.email, formData.password);
@@ -70,10 +68,10 @@ const AuthModal = ({ isOpen, onClose, mode: initialMode = 'login', onSwitchMode 
           setSuccess('Login successful! Welcome back!');
           setTimeout(() => {
             onClose();
+            if (onAuthSuccess) onAuthSuccess();
           }, 1500);
         } else {
           setError(result.message);
-          if (result.pendingVerification) setPendingEmail(formData.email);
           if (result.notRegistered) {
             setSuccess('No account found for this email. Please register first.');
           }

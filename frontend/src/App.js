@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import './index.css';
+import './theme/tokens.css';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import AboutUs from './components/AboutUs';
@@ -8,376 +9,40 @@ import Checkout from './components/Checkout';
 import OrderHistory from './components/OrderHistory';
 import ClothesPage from './components/ClothesPage';
 import GiftsPage from './components/GiftsPage';
-import VerifyEmail from './components/VerifyEmail';
+import WishlistPage from './components/WishlistPage';
 import clothingCatalog from './data/clothing-catalog.json';
 import giftsCatalog from './data/gifts-catalog.json';
+// New UI components
+import Navbar from './components/layout/Navbar';
+import HeroBanner from './components/home/HeroBanner';
+// Removed CategoryStrip per updated homepage simplification
+import ModernProductCard from './components/product/ModernProductCard';
 
-// Enhanced Product Card Component (fixed)
-const ProductCard = ({ product, onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
-  const handleView = () => onViewProduct && onViewProduct(product);
-  return (
-    <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
-      {product.discount > 0 && (
-        <div style={{
-          position: 'absolute', top: '10px', right: '10px', backgroundColor: '#ef4444', color: 'white',
-          padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', zIndex: 1
-        }}>-{product.discount}%</div>
-      )}
-      <img
-        src={(product.image || '').startsWith('http') ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(product.image)}` : product.image}
-        alt={product.name}
-        style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem', cursor: 'pointer' }}
-        onClick={handleView}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleView(); }}
-        tabIndex={0}
-        onError={(e) => {
-          const canvas = document.createElement('canvas');
-          canvas.width = 400; canvas.height = 300; const ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#667eea'; ctx.fillRect(0,0,400,300); ctx.fillStyle = '#fff'; ctx.font='20px Arial'; ctx.textAlign='center'; ctx.fillText(product.name,200,150);
-          e.currentTarget.src = canvas.toDataURL();
-        }}
-      />
-      <h3 style={{ color: '#1f2937', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }} onClick={handleView}>{product.name}</h3>
-      <div style={{ marginBottom: '1rem' }}>
-        <p style={{ color: '#6b7280', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
-          <span style={{ fontWeight: 600, color: '#4f46e5' }}>{product.brand || (product.type ? product.type.charAt(0).toUpperCase() + product.type.slice(1) : 'Product')}</span>
-          {' • '}{product.category === 'clothes' ? (product.gender || 'Unisex') : (product.ageGroup || 'All Ages')}
-        </p>
-        <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>
-          {product.category === 'clothes' ? (product.fabric || 'Cotton') : (product.material || 'Quality')} •
-          <span style={{ color: '#059669', fontWeight: 600, marginLeft: '0.25rem' }}>⭐ {(parseFloat(product.rating) || 4.5).toFixed(1)}</span>
-        </p>
-      </div>
-      {product.category === 'clothes' ? (
-        <div style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
-            {(product.sizes || ['S','M','L']).slice(0,4).map(size => (
-              <span key={size} style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#f3f4f6', borderRadius: '4px', color: '#374151' }}>{size}</span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            {(product.colors || ['Blue','Red','Green']).slice(0,3).map(color => (
-              <div key={color} style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: (c => {
-                const lc = c.toLowerCase();
-                if (lc === 'multicolor') return '#6366f1';
-                if (lc === 'check') return '#8b5cf6';
-                if (lc === 'floral') return '#ec4899';
-                return lc;
-              })(color), border: '1px solid #e5e7eb' }}/>
-            ))}
-            {product.colors && product.colors.length > 3 && <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>+{product.colors.length - 3}</span>}
-          </div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: '1rem' }}>
-          {(product.occasion || product.deliverySpeed) && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              {product.occasion && <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#ddd6fe', color: '#5b21b6', borderRadius: 8, textTransform: 'capitalize' }}>🎉 {product.occasion}</span>}
-              {product.deliverySpeed && <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', backgroundColor: '#fef3c7', color: '#d97706', borderRadius: 8, textTransform: 'capitalize' }}>🚚 {product.deliverySpeed}</span>}
-            </div>
-          )}
-        </div>
-      )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div>
-          <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#059669' }}>₹{product.price}</span>
-          {product.originalPrice > product.price && (
-            <span style={{ fontSize: '0.9rem', color: '#6b7280', textDecoration: 'line-through', marginLeft: '0.5rem' }}>₹{product.originalPrice}</span>
-          )}
-        </div>
-        <span style={{ backgroundColor: product.category === 'clothes' ? '#ddd6fe' : '#fce7f3', color: product.category === 'clothes' ? '#5b21b6' : '#be185d', padding: '0.25rem 0.5rem', borderRadius: 9999, fontSize: '0.8rem' }}>
-          ML: {(((product && typeof product.mlScore === 'number' ? product.mlScore : 0.9) * 100)).toFixed(0)}%
-        </span>
-      </div>
-      <button className="smartcart-button" style={{ width: '100%' }} onClick={() => {
-        if (isAuthenticated) onAddToCart(product); else onAuthRequired();
-      }}>🛒 {isAuthenticated ? 'Add to Cart' : 'Sign In to Add'}</button>
-    </div>
-  );
-};
-
-// Header Component
-const Header = ({ cartCount, onCartClick, user, onAuthClick, onLogout, currentPage, onNavigate, onShowOrderHistory }) => (
-  <header className="smartcart-gradient" style={{ padding: '1.5rem', color: 'white', position: 'sticky', top: 0, zIndex: 100 }}>
-    <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div>
-        <h1 style={{ fontSize: '2rem', margin: '0 0 0.5rem 0', cursor: 'pointer' }} onClick={() => onNavigate('home')}>
-          🛍️ SmartCart: Clothes & Gifts
-        </h1>
-        <p style={{ fontSize: '1rem', margin: 0, opacity: 0.9 }}>
-          AI-Powered Shopping Experience
-        </p>
-      </div>
-      
-      {/* Navigation Menu */}
-  <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        {/* Always-visible items */}
-        <button
-          onClick={() => onNavigate('home')}
-          style={{
-            background: 'none',
-            border: '2px solid rgba(255,255,255,0.3)',
-            color: currentPage === 'home' ? '#fff' : 'rgba(255,255,255,0.9)',
-            fontSize: '1.1rem',
-            fontWeight: currentPage === 'home' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '25px',
-            backgroundColor: currentPage === 'home' ? 'rgba(255,255,255,0.2)' : 'transparent',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseOver={(e) => {
-            if (currentPage !== 'home') {
-              e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-              e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-            }
-          }}
-          onMouseOut={(e) => {
-            if (currentPage !== 'home') {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-            }
-          }}
-        >
-          🏠 Home
-        </button>
-
-        <button
-          onClick={() => onNavigate('clothes')}
-          style={{
-            background: 'none',
-            border: '2px solid rgba(255,255,255,0.3)',
-            color: currentPage === 'clothes' ? '#fff' : 'rgba(255,255,255,0.9)',
-            fontSize: '1.1rem',
-            fontWeight: currentPage === 'clothes' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '25px',
-            backgroundColor: currentPage === 'clothes' ? 'rgba(255,255,255,0.2)' : 'transparent',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseOver={(e) => {
-            if (currentPage !== 'clothes') {
-              e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-              e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-            }
-          }}
-          onMouseOut={(e) => {
-            if (currentPage !== 'clothes') {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-            }
-          }}
-        >
-          👕 Clothes
-        </button>
-
-        <button
-          onClick={() => onNavigate('gifts')}
-          style={{
-            background: 'none',
-            border: '2px solid rgba(255,255,255,0.3)',
-            color: currentPage === 'gifts' ? '#fff' : 'rgba(255,255,255,0.9)',
-            fontSize: '1.1rem',
-            fontWeight: currentPage === 'gifts' ? 'bold' : 'normal',
-            cursor: 'pointer',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '25px',
-            backgroundColor: currentPage === 'gifts' ? 'rgba(255,255,255,0.2)' : 'transparent',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseOver={(e) => {
-            if (currentPage !== 'gifts') {
-              e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-              e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-            }
-          }}
-          onMouseOut={(e) => {
-            if (currentPage !== 'gifts') {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-            }
-          }}
-        >
-          🎁 Gifts
-        </button>
-
-  {/* About removed */}
-
-        {/* Show About Us only before signup (not authenticated) */}
-        {!user && (
-          <button
-            onClick={() => onNavigate('about')}
-            style={{
-              background: 'none',
-              border: '2px solid rgba(255,255,255,0.3)',
-              color: currentPage === 'about' ? '#fff' : 'rgba(255,255,255,0.9)',
-              fontSize: '1.1rem',
-              cursor: 'pointer',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '25px',
-              backgroundColor: currentPage === 'about' ? 'rgba(255,255,255,0.2)' : 'transparent',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseOver={(e) => {
-              if (currentPage !== 'about') {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (currentPage !== 'about') {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-              }
-            }}
-          >
-            ℹ️ About Us
-          </button>
-        )}
-
-        {/* Logged-in only items */}
-        {user && (
-          <>
-            <button
-              onClick={() => onShowOrderHistory && onShowOrderHistory()}
-              style={{
-                background: 'none',
-                border: '2px solid rgba(255,255,255,0.3)',
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: '1.1rem',
-                fontWeight: 'normal',
-                cursor: 'pointer',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '25px',
-                backgroundColor: 'transparent',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-              }}
-            >
-              📋 My Orders
-            </button>
-
-            {/* Wishlist removed */}
-
-            {/* Deals removed */}
-          </>
-        )}
-      </nav>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {user ? (
-          <>
-            {/* Greeting restored after signup */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              padding: '0.5rem 1rem',
-              borderRadius: '20px'
-            }}>
-              <img 
-                src={user.avatar ? (user.avatar.startsWith('http') ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(user.avatar)}` : user.avatar) : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Im0yMCAxNXYtMWMwLTIuMjA5LTEuNzkxLTQtNC00aC04Yy0yLjIwOSAwLTQgMS43OTEtNCAwdjEiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI0IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo8L3N2Zz4='}
-                alt={user.name}
-                style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
-              <span style={{ fontSize: '0.9rem' }}>Hi, {user.name.split(' ')[0]}!</span>
-            </div>
-            
-            <button 
-              onClick={onCartClick}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                border: '2px solid white',
-                color: 'white',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '25px',
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = 'white';
-                e.target.style.color = '#667eea';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                e.target.style.color = 'white';
-              }}
-            >
-              🛒 Cart ({cartCount})
-            </button>
-
-            <button 
-              onClick={onLogout}
-              style={{
-                backgroundColor: 'transparent',
-                border: '2px solid rgba(255,255,255,0.5)',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '20px',
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                e.target.style.borderColor = 'white';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.borderColor = 'rgba(255,255,255,0.5)';
-              }}
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <button 
-            onClick={onAuthClick}
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              border: '2px solid white',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '25px',
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.backgroundColor = 'white';
-              e.target.style.color = '#667eea';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.backgroundColor = 'rgba(255,255,255,0.2)';
-              e.target.style.color = 'white';
-            }}
-          >
-            🔑 Sign In / Sign Up
-          </button>
-        )}
-      </div>
-    </div>
-  </header>
-);
+// (Removed unused legacy ProductCard and Header components)
 
 // Using imported Cart component from './components/Cart'
+
+const PAGE_PATHS = {
+  home: '/',
+  clothes: '/clothes',
+  gifts: '/gifts',
+  wishlist: '/wishlist',
+  'verify-email': '/verify-email',
+  product: '/product',
+  'my-orders': '/my-orders'
+};
+
+const resolveInitialPage = () => {
+  if (typeof window === 'undefined') return 'home';
+  const { pathname } = window.location;
+  if (pathname.startsWith(PAGE_PATHS['verify-email'])) return 'verify-email';
+  if (pathname.startsWith(PAGE_PATHS.clothes)) return 'clothes';
+  if (pathname.startsWith(PAGE_PATHS.gifts)) return 'gifts';
+  if (pathname.startsWith(PAGE_PATHS.wishlist)) return 'wishlist';
+  if (pathname.startsWith(PAGE_PATHS.product)) return 'product';
+  if (pathname.startsWith(PAGE_PATHS['my-orders'])) return 'my-orders';
+  return 'home';
+};
 
 // Main App Component
 const AppContent = () => {
@@ -396,23 +61,278 @@ const AppContent = () => {
   const [showCart, setShowCart] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  const [currentPage, setCurrentPage] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/verify-email') return 'verify-email';
-    return 'home';
-  });
+  const [currentPage, setCurrentPageState] = useState(resolveInitialPage);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [activeClothingCategory, setActiveClothingCategory] = useState('All');
+  const [activeGiftCategory, setActiveGiftCategory] = useState('All');
+  const [suggestedSeed, setSuggestedSeed] = useState(Date.now());
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [wishlist, setWishlist] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('smartcart:wishlist') || '[]');
+      return Array.isArray(saved) ? saved.map((id) => String(id)) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [recentlyViewed, setRecentlyViewed] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('smartcart:recentlyViewed') || '[]');
+      return Array.isArray(saved) ? saved.map((id) => String(id)) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const { user, logout, isAuthenticated, loading } = useAuth();
 
-  // Only show homepage clothes with available images
-  const homepageClothes = useMemo(() => {
-    // Only include products with a valid image URL (not empty, not placeholder)
-    return (Array.isArray(clothingCatalog) ? clothingCatalog : [])
-      .filter(p => p.image && typeof p.image === 'string' && !p.image.includes('placeholder') && !p.image.includes('noimage') && !p.image.includes('default'))
-      .slice(0, 36);
+  const navigate = React.useCallback(
+    (page, { replace = false, state = {}, skipHistory = false } = {}) => {
+      setCurrentPageState(page);
+      if (skipHistory || typeof window === 'undefined') return;
+      const targetPath = PAGE_PATHS[page] || PAGE_PATHS.home;
+      const historyState = { page, ...state };
+      if (replace) {
+        window.history.replaceState(historyState, '', targetPath);
+      } else {
+        window.history.pushState(historyState, '', targetPath);
+      }
+    },
+    [setCurrentPageState]
+  );
+
+  const goToClothes = React.useCallback((category = 'All') => {
+    setActiveClothingCategory(category);
+    navigate('clothes', { state: { clothingCategory: category } });
+  }, [navigate, setActiveClothingCategory]);
+
+  const goToGifts = React.useCallback((category = 'All') => {
+    setActiveGiftCategory(category);
+    navigate('gifts', { state: { giftCategory: category } });
+  }, [navigate, setActiveGiftCategory]);
+
+  const handleViewProduct = React.useCallback((product) => {
+    if (!product) return;
+    const productId = product._id || product.id;
+    if (productId) {
+      const idString = String(productId);
+      setRecentlyViewed(prev => {
+        const without = prev.filter(id => id !== idString);
+        return [idString, ...without].slice(0, 20);
+      });
+    }
+    setSelectedProduct(product);
+    navigate('product', { state: { product } });
+  }, [navigate, setRecentlyViewed, setSelectedProduct]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const initialState = { page: currentPage };
+    if (currentPage === 'clothes') initialState.clothingCategory = activeClothingCategory;
+    if (currentPage === 'gifts') initialState.giftCategory = activeGiftCategory;
+    if (currentPage === 'product' && selectedProduct) initialState.product = selectedProduct;
+    window.history.replaceState(initialState, '', window.location.pathname);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handlePopState = (event) => {
+      const state = event.state || {};
+      const nextPage = state.page || resolveInitialPage();
+      setCurrentPageState(nextPage);
+      if (nextPage === 'clothes') {
+        setActiveClothingCategory(state.clothingCategory || 'All');
+      }
+      if (nextPage === 'gifts') {
+        setActiveGiftCategory(state.giftCategory || 'All');
+      }
+      if (nextPage === 'product') {
+        if (state.product) {
+          setSelectedProduct(state.product);
+        } else {
+          setSelectedProduct(null);
+        }
+      } else {
+        setSelectedProduct(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [setActiveClothingCategory, setActiveGiftCategory, setCurrentPageState, setSelectedProduct]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('smartcart:wishlist', JSON.stringify(wishlist));
+    }
+  }, [wishlist]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('smartcart:recentlyViewed', JSON.stringify(recentlyViewed));
+    }
+  }, [recentlyViewed]);
+
+  // Category extraction
+  // (Removed unused clothingCategories & giftCategories arrays)
+
+  // One representative image per category (first product with image)
+  const clothingCategoryCards = useMemo(() => {
+    const map = new Map();
+    clothingCatalog.forEach(p => {
+      if (!map.has(p.category) && p.image && p.image.startsWith('http')) map.set(p.category, p);
+    });
+    return Array.from(map.entries()).map(([category, product]) => ({ category, product })).slice(0, 12);
+  }, []);
+  const giftCategoryCards = useMemo(() => {
+    const map = new Map();
+    giftsCatalog.forEach(p => {
+      if (!map.has(p.category) && p.image && p.image.startsWith('http')) map.set(p.category, p);
+    });
+    return Array.from(map.entries()).map(([category, product]) => ({ category, product })).slice(0, 12);
+  }, []);
+
+  const catalogLookup = useMemo(() => {
+    const map = new Map();
+    const register = (key, product) => {
+      if (key === undefined || key === null) return;
+      const str = String(key);
+      if (!map.has(str)) map.set(str, product);
+    };
+    [...clothingCatalog, ...giftsCatalog].forEach(product => {
+      register(product.id, product);
+      register(product._id, product);
+    });
+    return map;
+  }, []);
+
+  const getProductById = React.useCallback((id) => {
+    if (id === undefined || id === null) return null;
+    return catalogLookup.get(String(id)) || null;
+  }, [catalogLookup]);
+
+  const wishlistProducts = useMemo(() => wishlist
+    .map(id => getProductById(id))
+    .filter(Boolean), [wishlist, getProductById]);
+
+  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
+  const cartIdSet = useMemo(() => new Set(cartItems.map(item => String(item.id))), [cartItems]);
+
+  const userPreferenceData = useMemo(() => {
+    const categoryScores = new Map();
+    const collectionScores = new Map();
+    const bump = (product, weight) => {
+      if (!product) return;
+      if (product.category) {
+        categoryScores.set(product.category, (categoryScores.get(product.category) || 0) + weight);
+      }
+      const collection = product.collection || product.brand;
+      if (collection) {
+        collectionScores.set(collection, (collectionScores.get(collection) || 0) + weight);
+      }
+    };
+
+    wishlistProducts.forEach(product => bump(product, 4));
+    cartItems.forEach(item => bump(getProductById(item.id), 6));
+    recentlyViewed.forEach(id => bump(getProductById(id), 3));
+    if (selectedProduct) bump(selectedProduct, 5);
+
+    return { categoryScores, collectionScores };
+  }, [wishlistProducts, cartItems, recentlyViewed, selectedProduct, getProductById]);
+
+  const allDisplayableProducts = useMemo(() => (
+    [...clothingCatalog, ...giftsCatalog].filter(p => p.image && p.image.startsWith('http'))
+  ), []);
+
+  const personalizedSuggestions = useMemo(() => {
+    const { categoryScores, collectionScores } = userPreferenceData;
+    const recencyBoost = new Map();
+    recentlyViewed.forEach((id, index) => {
+      const weight = Math.max(0, 1 - (index * 0.08));
+      recencyBoost.set(id, weight * 4);
+    });
+
+    const scored = allDisplayableProducts.map(product => {
+      const key = String(product._id || product.id);
+      const numericSeed = typeof product.id === 'number'
+        ? product.id
+        : parseInt(key.replace(/[^0-9]/g, ''), 10) || 0;
+      const randomJitter = ((Math.sin(suggestedSeed + numericSeed) + 1) / 2) * 0.4;
+      const categoryBoost = categoryScores.get(product.category) || 0;
+      const collectionKey = product.collection || product.brand;
+      const collectionBoost = collectionKey ? (collectionScores.get(collectionKey) || 0) : 0;
+      const wishlistBoost = wishlistSet.has(key) ? 6 : 0;
+      const cartBoost = cartIdSet.has(key) ? 7 : 0;
+      const recency = recencyBoost.get(key) || 0;
+      const score = categoryBoost + collectionBoost + wishlistBoost + cartBoost + recency + randomJitter;
+      return { product, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const positives = scored.filter(entry => entry.score > 0);
+    const top = (positives.length >= 24 ? positives.slice(0, 24) : scored.slice(0, 24)).map(entry => entry.product);
+    return top;
+  }, [allDisplayableProducts, userPreferenceData, wishlistSet, cartIdSet, recentlyViewed, suggestedSeed]);
+
+  // Static first row: 4 specific products (Palazzo Pants Variant, Anarkali Suit, Hand-painted tea set, Personalized mug)
+  const staticFirstRow = useMemo(() => {
+    const palazzo = clothingCatalog.find(p => p.id === 838 && p.name === 'Palazzo Pants Variant');
+    const anarkali = clothingCatalog.find(p => p.id === 4 && p.name === 'Anarkali Suit');
+    const teaSet = giftsCatalog.find(p => p.id === 119 && p.name === 'Hand-painted tea set');
+    const mug = giftsCatalog.find(p => p.id === 1 && p.name === 'Personalized mug');
+    return [palazzo, anarkali, teaSet, mug].filter(Boolean);
+  }, []);
+
+  // Suggested (random 8 clothes + 8 gifts for remaining 4 rows, interleaved 2-2 pattern)
+  const suggestedClothes = useMemo(() => {
+    const seed = suggestedSeed || 0;
+    const valid = clothingCatalog.filter(p => p.image && p.image.startsWith('http') && p.id !== 838 && p.id !== 4);
+    const scored = valid.map((product, index) => {
+      const numeric = typeof product.id === 'number' ? product.id : index;
+      const value = Math.sin(seed + numeric * 17.23) * 10000;
+      return { product, score: value - Math.floor(value) };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(entry => entry.product).slice(0, 8);
+  }, [suggestedSeed]);
+  const suggestedGifts = useMemo(() => {
+    const seed = suggestedSeed || 0;
+    const valid = giftsCatalog.filter(p => p.image && p.image.startsWith('http') && p.id !== 119 && p.id !== 1);
+    const scored = valid.map((product, index) => {
+      const numeric = typeof product.id === 'number' ? product.id : index;
+      const value = Math.sin(seed + numeric * 19.07) * 10000;
+      return { product, score: value - Math.floor(value) };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(entry => entry.product).slice(0, 8);
+  }, [suggestedSeed]);
+
+  // Interleave: 2 clothes, 2 gifts, repeat (4 rows of 4 items = 16 total)
+  const suggestionsToRender = useMemo(() => {
+    const interleaved = [...staticFirstRow]; // Start with static row
+    const clothesCount = suggestedClothes.length;
+    const giftsCount = suggestedGifts.length;
+    let ci = 0, gi = 0;
+    while (interleaved.length < 20 && (ci < clothesCount || gi < giftsCount)) {
+      // Add 2 clothes
+      if (ci < clothesCount) interleaved.push(suggestedClothes[ci++]);
+      if (ci < clothesCount) interleaved.push(suggestedClothes[ci++]);
+      // Add 2 gifts
+      if (gi < giftsCount) interleaved.push(suggestedGifts[gi++]);
+      if (gi < giftsCount) interleaved.push(suggestedGifts[gi++]);
+    }
+    return interleaved;
+  }, [staticFirstRow, suggestedClothes, suggestedGifts]);
+  const previewSuggestions = suggestionsToRender;
 
   // Backend API base
   // Prefer explicit env (REACT_APP_API_BASE_URL, e.g. https://smartcart-clothes-gifts.onrender.com/api),
@@ -510,6 +430,18 @@ const AppContent = () => {
     setShowCheckout(true);
     return ok;
   };
+
+  const toggleWishlist = React.useCallback((product) => {
+    if (!product) return;
+    const productId = product._id || product.id;
+    if (!productId) return;
+    const idString = String(productId);
+    setWishlist(prev => (
+      prev.includes(idString)
+        ? prev.filter(id => id !== idString)
+        : [...prev, idString]
+    ));
+  }, []);
 
   const updateQuantity = async (id, newQuantity) => {
     if (newQuantity <= 0) { removeFromCart(id); return; }
@@ -647,270 +579,201 @@ const AppContent = () => {
 
   return (
     <div className="App">
-      <Header 
-        cartCount={cartCount} 
+      <Navbar
+        cartCount={cartCount}
         onCartClick={() => {
-          if (isAuthenticated) {
-            setShowCart(true);
-          } else {
-            setAuthMode('login');
-            setShowAuthModal(true);
-          }
-        }} 
+          if (isAuthenticated) setShowCart(true); else { setAuthMode('login'); setShowAuthModal(true); }
+        }}
+        wishlistCount={wishlist.length}
+        onWishlistClick={() => {
+          setShowCart(false);
+          setShowCheckout(false);
+          navigate('wishlist');
+        }}
         user={user}
         onAuthClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
         onLogout={handleLogout}
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-        onShowOrderHistory={() => setShowOrderHistory(true)}
+        onNavigate={navigate}
       />
 
       {currentPage === 'home' && (
         <>
-          {/* Hero Section */}
-          <section style={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '4rem 2rem',
-        textAlign: 'center'
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
-            {isAuthenticated 
-              ? `Welcome back, ${user?.name?.split(' ')[0]}! 🎉` 
-              : 'Welcome to Smart Shopping Experience'}
-          </h2>
-          <p style={{ fontSize: '1.2rem', opacity: 0.9 }}>
-            {isAuthenticated 
-              ? 'Discover personalized recommendations powered by AI'
-              : 'Sign in to unlock AI-powered recommendations and personalized shopping'}
-          </p>
-          {!isAuthenticated && (
-            <button
-              onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                border: '2px solid white',
-                color: 'white',
-                padding: '1rem 2rem',
-                borderRadius: '30px',
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                marginTop: '1.5rem',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.backgroundColor = 'white';
-                e.target.style.color = '#667eea';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                e.target.style.color = 'white';
-              }}
-            >
-              🚀 Get Started - Sign Up Now
-            </button>
-          )}
-        </div>
-      </section>
-
-      <main style={{ padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* Clothes Section */}
-        <section style={{ marginBottom: '5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '2rem', color: '#374151', margin: '0 0 0.5rem 0' }}>
-                👕 {isAuthenticated ? 'Your Recommended Clothes' : 'Featured Clothes'}
-              </h2>
-              <p style={{ color: '#6b7280', margin: 0 }}>
-                36 premium selections
-              </p>
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage('clothes')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px 0 rgba(102, 126, 234, 0.4)'
-              }}
-            >
-              🔍 Browse All Clothes ({clothingCatalog.length})
-            </button>
-          </div>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-            gap: '2rem' 
-          }}>
-            {homepageClothes.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={{ ...product, category: 'clothes' }} 
-                onAddToCart={addToCart}
-                isAuthenticated={isAuthenticated}
-                onAuthRequired={handleAuthRequired}
-                onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Gifts Section */}
-        <section style={{ marginBottom: '3rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '2rem', color: '#374151', margin: '0 0 0.5rem 0' }}>
-                🎁 {isAuthenticated ? 'Your Recommended Gifts' : 'Featured Gifts'}
-              </h2>
-              <p style={{ color: '#6b7280', margin: 0 }}>
-                18 thoughtful selections
-              </p>
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage('gifts')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px 0 rgba(240, 147, 251, 0.4)'
-              }}
-            >
-              🔍 Browse All Gifts ({giftsCatalog.length})
-            </button>
-          </div>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-            gap: '2rem' 
-          }}>
-            {giftsCatalog
-              .filter(p => p.image && typeof p.image === 'string' && !p.image.includes('placeholder') && !p.image.includes('noimage') && !p.image.includes('default'))
-              .slice(0, 18)
-              .map(product => (
-                <ProductCard 
-                  key={product.id} 
-                  product={{ ...product, category: 'gifts' }} 
-                  onAddToCart={addToCart}
-                  isAuthenticated={isAuthenticated}
-                  onAuthRequired={handleAuthRequired}
-                  onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
-                />
-              ))}
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section style={{ marginTop: '5rem', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '3rem', color: '#374151' }}>
-            ✨ Why Choose SmartCart?
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
-            <div className="smartcart-card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤖</div>
-              <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>AI Recommendations</h3>
-              <p style={{ color: '#6b7280' }}>Smart ML algorithms learn your preferences</p>
-            </div>
-            <div className="smartcart-card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-              <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Secure Authentication</h3>
-              <p style={{ color: '#6b7280' }}>Your personal data is safe and secure</p>
-            </div>
-            <div className="smartcart-card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💳</div>
-              <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Secure Payments</h3>
-              <p style={{ color: '#6b7280' }}>Multiple payment options with top security</p>
-            </div>
-            <div className="smartcart-card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚚</div>
-              <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Fast Delivery</h3>
-              <p style={{ color: '#6b7280' }}>Quick and reliable shipping worldwide</p>
-            </div>
-            
-            {/* Additional features shown only for authenticated users */}
-            {isAuthenticated && (
-              <>
-                <div className="smartcart-card" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-                  <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Order Tracking</h3>
-                  <p style={{ color: '#6b7280' }}>Real-time updates on your order status</p>
+          <HeroBanner
+            isAuthenticated={isAuthenticated}
+            onCTA={() => { setAuthMode('register'); setShowAuthModal(true); }}
+          />
+          {/* Removed billboard + category strip per request */}
+          {/* Full-bleed homepage wrapper (edge-to-edge) */}
+          <div style={{ width:'100vw', position:'relative', left:'50%', marginLeft:'-50vw', padding:'4rem 2rem', display:'flex', flexDirection:'column', gap:'7rem' }}>
+            {/* Clothing Categories */}
+            <section>
+              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
+                  <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
+                    <h2 style={{ margin:0 }}>Clothing Categories</h2>
+                    <p style={{ margin:0 }}>Browse curated clothing groups</p>
+                  </div>
+                  <div style={{ flex: '0 0 auto' }}>
+                    <button onClick={() => goToClothes('All')} style={{ background:'#ff3f6c', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.55rem 1.05rem', borderRadius:999, fontSize:'.8rem', letterSpacing:'.5px', boxShadow:'0 4px 12px -4px rgba(255,63,108,0.45)' }}>View All</button>
+                  </div>
                 </div>
-                <div className="smartcart-card" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❤️</div>
-                  <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Wishlist & Favorites</h3>
-                  <p style={{ color: '#6b7280' }}>Save items for later and get price alerts</p>
+              </div>
+              <div style={{ maxWidth: '100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.25rem', width:'100%', margin:'0 auto' }}>
+                {clothingCategoryCards.map(({ category, product }) => (
+                  <div key={category} className="group cursor-pointer" onClick={() => goToClothes(category)}>
+                    <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
+                      <img src={product.image} alt={category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                        <span className="text-white text-sm font-semibold drop-shadow">{category}</span>
+                        <span className="sc-cat-chip">SHOP</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            {/* Gift Categories */}
+            <section>
+              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
+                  <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
+                    <h2 style={{ margin:0 }}>Gift Categories</h2>
+                    <p style={{ margin:0 }}>Find inspiration for every occasion</p>
+                  </div>
+                  <div style={{ flex: '0 0 auto' }}>
+                    <button onClick={() => goToGifts('All')} style={{ background:'#6366f1', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.55rem 1.05rem', borderRadius:999, fontSize:'.8rem', letterSpacing:'.5px', boxShadow:'0 4px 12px -4px rgba(99,102,241,0.45)' }}>View All</button>
+                  </div>
                 </div>
-                <div className="smartcart-card" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
-                  <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Personalized Deals</h3>
-                  <p style={{ color: '#6b7280' }}>Exclusive offers based on your preferences</p>
+              </div>
+              <div style={{ maxWidth: '100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.25rem', width:'100%', margin:'0 auto' }}>
+                {giftCategoryCards.map(({ category, product }) => (
+                  <div key={category} className="group cursor-pointer" onClick={() => goToGifts(category)}>
+                    <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
+                      <img src={product.image} alt={category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                        <span className="text-white text-sm font-semibold drop-shadow">{category}</span>
+                        <span className="sc-cat-chip">BROWSE</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            {wishlistProducts.length > 0 && (
+              <section>
+                <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
+                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:'2rem', flexWrap:'wrap' }}>
+                    <div style={{ flex:'1 1 auto', minWidth:280 }}>
+                      <h2 style={{ margin:0 }}>Your Wishlist</h2>
+                      <p style={{ margin:0 }}>Quick access to the pieces you’ve favourited</p>
+                    </div>
+                    <div style={{ color:'#64748b', fontSize:'.85rem', fontWeight:600 }}>
+                      {wishlistProducts.length} saved {wishlistProducts.length === 1 ? 'item' : 'items'}
+                    </div>
+                  </div>
                 </div>
-                <div className="smartcart-card" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚡</div>
-                  <h3 style={{ color: '#1f2937', marginBottom: '0.5rem' }}>Priority Support</h3>
-                  <p style={{ color: '#6b7280' }}>24/7 dedicated customer service for members</p>
+                <div style={{ maxWidth:'100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.5rem', width:'100%', margin:'0 auto' }}>
+                  {wishlistProducts.map(product => (
+                    <ModernProductCard
+                      key={`wl-${product.id || product._id}`}
+                      product={product}
+                      onAdd={addToCart}
+                      isAuthenticated={isAuthenticated}
+                      onAuth={handleAuthRequired}
+                      onView={handleViewProduct}
+                      size="xl"
+                      isFavorite
+                      onToggleFavorite={toggleWishlist}
+                    />
+                  ))}
                 </div>
-              </>
+              </section>
             )}
+            {/* Suggested For You */}
+            <section>
+              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
+                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:'2rem', flexWrap:'wrap' }}>
+                  <div style={{ flex:'1 1 auto', minWidth:300, display:'flex', flexDirection:'column', gap:'.45rem' }}>
+                    <h2 style={{ margin:0 }}>Suggested For You</h2>
+                    <p style={{ margin:0, color:'#64748b' }}>Blended from your cart, wishlist, and browsing activity</p>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
+                    <button onClick={() => { setSuggestedSeed(Date.now()); }} style={{ background:'#ff3f6c', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.65rem 1.15rem', borderRadius:999, fontSize:'.85rem', letterSpacing:'.5px', boxShadow:'0 4px 14px -4px rgba(255,63,108,0.45)' }}>↻ Refresh</button>
+                  </div>
+                </div>
+              </div>
+              {previewSuggestions.length === 0 ? (
+                <div style={{
+                  width:'100%',
+                  padding:'3rem',
+                  borderRadius:32,
+                  border:'1px dashed rgba(148,163,184,0.45)',
+                  textAlign:'center',
+                  color:'#6b7280'
+                }}>
+                  Add items to your cart or wishlist to unlock tailored suggestions.
+                </div>
+              ) : (
+                <div style={{ maxWidth:'100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.5rem', width:'100%', margin:'0 auto' }}>
+                  {previewSuggestions.map(product => (
+                    <ModernProductCard
+                      key={`s-${product.id || product._id}`}
+                      product={product}
+                      onAdd={addToCart}
+                      isAuthenticated={isAuthenticated}
+                      onAuth={handleAuthRequired}
+                      onView={handleViewProduct}
+                      size="xl"
+                      isFavorite={wishlistSet.has(String(product._id || product.id))}
+                      onToggleFavorite={toggleWishlist}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        </section>
-      </main>
-
         </>
       )}
 
-      {currentPage === 'about' && AboutUs && (
-        <AboutUs 
-          onNavigateHome={() => setCurrentPage('home')}
-          onContactUs={() => {
-            alert('Contact feature coming soon! 📧');
-          }}
-        />
-      )}
-
-      {currentPage === 'verify-email' && (
-        <VerifyEmail onDone={() => setCurrentPage('home')} />
-      )}
-
-      {currentPage === 'clothes' && ClothesPage && (
-        <ClothesPage 
+      {/* Clothes Page Render with category pre-select */}
+      {currentPage === 'clothes' && (
+        <ClothesPage
           onAddToCart={addToCart}
           isAuthenticated={isAuthenticated}
           onAuthRequired={handleAuthRequired}
-          onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
+          onViewProduct={handleViewProduct}
+          initialCategory={activeClothingCategory}
+          wishlistIds={wishlist}
+          onToggleWishlist={toggleWishlist}
         />
       )}
 
-      {currentPage === 'gifts' && GiftsPage && (
-        <GiftsPage 
+      {/* Gifts Page Render with category pre-select */}
+      {currentPage === 'gifts' && (
+        <GiftsPage
           onAddToCart={addToCart}
           isAuthenticated={isAuthenticated}
           onAuthRequired={handleAuthRequired}
-          onViewProduct={(p) => { setSelectedProduct(p); setCurrentPage('product'); }}
+          onViewProduct={handleViewProduct}
+          initialCategory={activeGiftCategory}
+          wishlistIds={wishlist}
+          onToggleWishlist={toggleWishlist}
+        />
+      )}
+
+      {currentPage === 'wishlist' && (
+        <WishlistPage
+          products={wishlistProducts}
+          onAddToCart={addToCart}
+          isAuthenticated={isAuthenticated}
+          onAuthRequired={handleAuthRequired}
+          onViewProduct={handleViewProduct}
+          onToggleWishlist={toggleWishlist}
+          onBrowseClothes={() => navigate('clothes')}
+          onBrowseGifts={() => navigate('gifts')}
+          onBackHome={() => navigate('home')}
         />
       )}
 
@@ -919,13 +782,56 @@ const AppContent = () => {
           {/* Lazy import to avoid initial bundle bloat */}
           {React.createElement(require('./components/ProductDetail').default, {
             product: selectedProduct,
-            onClose: () => { setSelectedProduct(null); setCurrentPage('home'); },
+            onClose: () => {
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                window.history.back();
+              } else {
+                setSelectedProduct(null);
+                navigate('home', { replace: true });
+              }
+            },
             onAddToCart: addToCart,
             onBuyNow: buyNow,
             isAuthenticated,
             onAuthRequired: handleAuthRequired
           })}
         </React.Suspense>
+      )}
+
+      {/* My Orders Page (full-page variant) */}
+      {currentPage === 'my-orders' && (
+        isAuthenticated ? (
+          <div style={{ width:'100%', padding:'2.5rem 1rem', display:'flex', justifyContent:'center' }}>
+            <div style={{ width:'100%', maxWidth:1200 }}>
+              <OrderHistory
+                user={user}
+                variant="page"
+                onClose={() => navigate('home')}
+              />
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding:'5rem 1.5rem', maxWidth:900, margin:'0 auto', textAlign:'center' }}>
+            <div style={{ fontSize:'4rem', marginBottom:'1rem' }}>🔐</div>
+            <h2 style={{ margin:'0 0 1rem', fontSize:'2rem', fontWeight:800, letterSpacing:'-.5px' }}>Sign In to View Your Orders</h2>
+            <p style={{ color:'#64748b', margin:'0 0 2.25rem', fontSize:'1.05rem', lineHeight:1.5 }}>Access your full purchase history, track delivery status, and manage recent orders.</p>
+            <button
+              onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+              style={{
+                background:'linear-gradient(135deg,#ff3f6c,#6366f1)',
+                border:'none',
+                color:'#fff',
+                padding:'0.9rem 2.1rem',
+                fontSize:'1rem',
+                fontWeight:600,
+                borderRadius:14,
+                cursor:'pointer',
+                boxShadow:'0 8px 24px -10px rgba(99,102,241,0.45)',
+                letterSpacing:'.25px'
+              }}
+            >Sign In to Continue →</button>
+          </div>
+        )
       )}
 
   {/* Profile page removed */}
@@ -946,6 +852,7 @@ const AppContent = () => {
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+          onAuthSuccess={() => navigate('home')}
           mode={authMode}
           onSwitchMode={setAuthMode}
         />

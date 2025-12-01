@@ -1,160 +1,9 @@
 /* eslint-disable unicode-bom */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import ModernProductCard from './product/ModernProductCard';
+import PageHero from './layout/PageHero';
 import { useAuth } from '../contexts/AuthContext';
 import giftsCatalog from '../data/gifts-catalog.json';
-
-const GiftProductCard = ({ product, onAddToCart, isAuthenticated, onViewProduct }) => {
-  // Use product properties directly
-  const originalPrice = product.discount > 0 ? Math.floor(product.price / (1 - product.discount / 100)) : product.price;
-  const currentPrice = product.price;
-  const discountPercent = product.discount;
-  const savings = originalPrice - currentPrice;
-
-  // Only render if image exists and matches available images
-  const imageFilename = product.image?.split('/').pop();
-  if (!imageFilename || !imageFilename.startsWith('gifts_')) return null;
-
-  return (
-    <div className="smartcart-card" style={{ height: 'fit-content', position: 'relative' }}>
-      {/* Discount Badge */}
-      {discountPercent > 0 && (
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          backgroundColor: '#ef4444',
-          color: 'white',
-          padding: '0.25rem 0.5rem',
-          borderRadius: '4px',
-          fontSize: '0.75rem',
-          fontWeight: 'bold',
-          zIndex: 2
-        }}>
-          {discountPercent}% OFF
-        </div>
-      )}
-
-      {/* Product Image */}
-      <div style={{ position: 'relative', marginBottom: '1rem' }}>
-        <img 
-          src={(product.image || '').startsWith('http') 
-            ? `${(typeof window!== 'undefined' && (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') ? 'http://localhost:5000' : '')}/api/images/proxy?url=${encodeURIComponent(product.image)}` 
-            : product.image}
-          alt={product.name}
-          style={{
-            width: '100%',
-            height: '224px',
-            objectFit: 'cover',
-            borderRadius: '8px'
-          }}
-          onClick={() => onViewProduct && onViewProduct(product)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key==='Enter') { onViewProduct && onViewProduct(product); } }}
-        />
-      </div>
-
-      {/* Product Info */}
-      <div style={{ padding: '1rem' }}>
-        <h3 onClick={() => onViewProduct && onViewProduct(product)} style={{ 
-          fontSize: '1rem', 
-          fontWeight: '600', 
-          color: '#111827', 
-          marginBottom: '0.5rem',
-          lineHeight: '1.4',
-          cursor: 'pointer'
-        }}>
-          {product.name}
-        </h3>
-        
-        <div style={{ marginBottom: '0.75rem' }}>
-          <span style={{ 
-            backgroundColor: '#ddd6fe', 
-            color: '#7c3aed', 
-            padding: '0.25rem 0.5rem', 
-            borderRadius: '12px', 
-            fontSize: '0.75rem',
-            fontWeight: '500'
-          }}>
-            {product.category}
-          </span>
-        </div>
-
-        {/* Pricing */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#111827' }}>
-            ₹{currentPrice.toLocaleString()}
-          </span>
-          {discountPercent > 0 && (
-            <span style={{ 
-              fontSize: '0.875rem', 
-              color: '#6b7280', 
-              textDecoration: 'line-through',
-              marginLeft: '0.5rem'
-            }}>
-              ₹{originalPrice.toLocaleString()}
-            </span>
-          )}
-        </div>
-
-        {discountPercent > 0 && (
-          <div style={{ 
-            fontSize: '0.75rem', 
-            color: '#059669', 
-            fontWeight: '500',
-            marginBottom: '1rem'
-          }}>
-            You save ₹{savings.toLocaleString()}!
-          </div>
-        )}
-
-        {/* Rating and Reviews */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.5rem', 
-          marginBottom: '1rem',
-          fontSize: '0.875rem',
-          color: '#6b7280'
-        }}>
-          <span style={{ color: '#f59e0b' }}>★</span>
-          <span>{product.rating}</span>
-          <span>({product.reviews} reviews)</span>
-        </div>
-
-        {/* Add to Cart Button */}
-        <button
-          onClick={() => isAuthenticated ? onAddToCart(product, currentPrice) : alert('Please log in to add items to cart')}
-          disabled={!product.inStock}
-          style={{
-            backgroundColor: product.inStock ? '#10b981' : '#9ca3af',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '6px',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            cursor: product.inStock ? 'pointer' : 'not-allowed',
-            width: '100%',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            if (product.inStock) {
-              e.target.style.backgroundColor = '#059669';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (product.inStock) {
-              e.target.style.backgroundColor = '#10b981';
-            }
-          }}
-        >
-          {product.inStock ? 'Add to Cart' : 'Out of Stock'}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const FilterModal = ({ isOpen, onClose, onApplyFilters }) => {
   const [tempFilters, setTempFilters] = useState({
@@ -321,7 +170,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilters }) => {
   );
 };
 
-const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct }) => {
+const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct, initialCategory='All', wishlistIds = [], onToggleWishlist }) => {
   const authCtx = useAuth();
   const isAuthed = typeof isAuthenticated === 'boolean' ? isAuthenticated : !!authCtx?.user || !!authCtx?.isAuthenticated;
   const [searchTerm, setSearchTerm] = useState('');
@@ -330,18 +179,26 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filters, setFilters] = useState({
-    category: '',
+    category: initialCategory && initialCategory !== 'All' ? initialCategory : '',
     priceRange: '',
     discount: ''
   });
+  const wishlistSet = useMemo(() => new Set((wishlistIds || []).map(id => String(id))), [wishlistIds]);
 
   const itemsPerPage = 40;
+
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      category: initialCategory && initialCategory !== 'All' ? initialCategory : ''
+    }));
+    setCurrentPage(1);
+  }, [initialCategory]);
 
   // Only use products with available images
   const processedGifts = useMemo(() => {
     return giftsCatalog.filter(product => {
-      const imageFilename = product.image?.split('/').pop();
-      return imageFilename && imageFilename.startsWith('gifts_');
+      return product.image && product.image.startsWith('http');
     });
   }, []);
 
@@ -428,25 +285,31 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
     setCurrentPage(1);
   };
 
+  // Scroll to top when page mounts & when navigating between contexts
+  useEffect(() => { window.scrollTo({ top:0, behavior:'smooth' }); }, []);
+  useEffect(() => { window.scrollTo({ top:0, behavior:'smooth' }); }, [currentPage, filters, sortBy, sortOrder, searchTerm]);
+
+  const heroTags = ['Personal Notes', 'Heirloom Finds', 'Next-Day Surprise'];
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ 
-          fontSize: '2.5rem', 
-          fontWeight: 'bold', 
-          color: '#111827', 
-          marginBottom: '0.5rem',
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }}>
-          🎁 Perfect Gifts Collection
-        </h1>
-        <p style={{ fontSize: '1.125rem', color: '#6b7280' }}>
-          Discover {giftsCatalog.length} unique and thoughtful gifts for every occasion
-        </p>
+    <div style={{ width:'100vw', position:'relative', left:'50%', right:'50%', marginLeft:'-50vw', marginRight:'-50vw' }}>
+      <PageHero
+        fullBleed
+        variant="gifts"
+        title="Signature Gifts Wrapped With Care"
+        description="Celebrate milestones with personalised keepsakes, handcrafted hampers, and ready-to-gift sets that arrive beautifully wrapped."
+        spotlightTitle="Celebration Edit"
+        spotlightSubtitle="Keepsake boxes, bespoke notes, and limited-run treasures ready to surprise and delight."
+        tags={heroTags}
+      />
+      <div style={{ padding:'1.75rem 2rem 2.75rem' }}>
+      {/* Header (SMARTCART removed – in navbar) */}
+      <div style={{ textAlign:'center', maxWidth:1400, margin:'0 auto' }}>
+        <h2 style={{ fontSize:'2.2rem', fontWeight:700, letterSpacing:'-.5px', margin:0, color:'#111827' }}>Gifts Collection</h2>
+        <p style={{ fontSize:'0.95rem', color:'#6b7280', margin:'0 0 2.1rem' }}>Discover {filteredGifts.length} unique and thoughtful gifts for every occasion</p>
+        <div style={{ fontSize:'0.7rem', letterSpacing:'.55px', color:'#9ca3af', marginTop:6, fontWeight:600 }}>
+          Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredGifts.length)} of {filteredGifts.length}{filters.category ? ` • ${filters.category}` : ''}
+        </div>
       </div>
 
       {/* Search and Controls */}
@@ -626,37 +489,31 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
         )}
       </div>
 
-      {/* Products Grid */}
-      {paginatedGifts.length > 0 ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          {paginatedGifts.map((gift) => (
-            <GiftProductCard
-              key={gift.id}
-              product={gift}
-              onAddToCart={handleAddToCart}
-              isAuthenticated={isAuthed}
-              onViewProduct={onViewProduct}
-            />
-          ))}
+    {/* Products Grid Full-Bleed using homepage card style */}
+    {paginatedGifts.length > 0 ? (
+  <div style={{ width:'100%', margin:'2.25rem 0 0', display:'grid', gap:'1.75rem', gridTemplateColumns:'repeat(4, 1fr)' }}>
+          {paginatedGifts.map(gift => {
+            if (!gift.image || !gift.image.startsWith('http')) return null;
+            return (
+              <ModernProductCard
+                key={gift.id}
+                product={gift}
+                onAdd={(prod) => handleAddToCart(prod)}
+                isAuthenticated={isAuthed}
+                onAuth={onAuthRequired}
+                onView={onViewProduct}
+                size="xl"
+                isFavorite={wishlistSet.has(String(gift._id || gift.id))}
+                onToggleFavorite={onToggleWishlist}
+              />
+            );
+          })}
         </div>
       ) : (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem 1rem',
-          color: '#6b7280'
-        }}>
+        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6b7280' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
-            No gifts found
-          </h3>
-          <p style={{ fontSize: '1rem' }}>
-            Try adjusting your search terms or filters to find more gifts.
-          </p>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>No gifts found</h3>
+          <p style={{ fontSize: '1rem' }}>Try adjusting your search terms or filters to find more gifts.</p>
         </div>
       )}
 
@@ -670,6 +527,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
           marginTop: '2rem'
         }}>
           <button
+            type="button"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
             style={{
@@ -696,6 +554,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
             return (
               <button
                 key={pageNum}
+                type="button"
                 onClick={() => setCurrentPage(pageNum)}
                 style={{
                   padding: '0.5rem 0.75rem',
@@ -715,6 +574,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
           })}
 
           <button
+            type="button"
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
             style={{
@@ -739,6 +599,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
         onClose={() => setShowFilterModal(false)}
         onApplyFilters={handleApplyFilters}
       />
+      </div>
     </div>
   );
 };
