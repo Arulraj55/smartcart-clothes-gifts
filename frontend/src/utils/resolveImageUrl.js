@@ -18,6 +18,16 @@ const isAllowedHost = (url) => {
 	}
 };
 
+const isAmazonHost = (url) => {
+	try {
+		const parsed = new URL(url);
+		const host = parsed.hostname.replace(/^www\./, '');
+		return host.endsWith('media-amazon.com') || host.endsWith('ssl-images-amazon.com') || host.endsWith('amazonaws.com');
+	} catch {
+		return false;
+	}
+};
+
 export const resolveImageUrl = (url) => {
 	if (!url || typeof url !== 'string') return '';
 	if (url.startsWith('data:') || url.startsWith('blob:')) return url;
@@ -32,6 +42,7 @@ export const resolveImageUrl = (url) => {
 	if (url.startsWith('/api/images/proxy')) return `${apiHost}${url}`;
 
 	if (/^https?:\/\//i.test(url)) {
+		if (isAmazonHost(url)) return url;
 		if (isAllowedHost(url)) {
 			return `${apiBase}/images/proxy?url=${encodeURIComponent(url)}`;
 		}
