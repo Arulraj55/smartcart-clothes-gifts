@@ -18,11 +18,19 @@ const isAllowedHost = (url) => {
 export const resolveImageUrl = (url) => {
 	if (!url || typeof url !== 'string') return '';
 	if (url.startsWith('data:') || url.startsWith('blob:')) return url;
-	if (url.startsWith('/images/') || url.startsWith('/api/images/proxy')) return url;
+
+	const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
+	const apiBase = explicitBase
+		? explicitBase.replace(/\/$/, '')
+		: 'https://smartcart-clothes-gifts-backend.onrender.com/api';
+	const apiHost = apiBase.replace(/\/api\/?$/, '');
+
+	if (url.startsWith('/images/')) return `${apiHost}${url}`;
+	if (url.startsWith('/api/images/proxy')) return `${apiHost}${url}`;
 
 	if (/^https?:\/\//i.test(url)) {
 		if (isAllowedHost(url)) {
-			return `/api/images/proxy?url=${encodeURIComponent(url)}`;
+			return `${apiBase}/images/proxy?url=${encodeURIComponent(url)}`;
 		}
 		return url;
 	}
