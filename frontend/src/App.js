@@ -195,8 +195,10 @@ const AppContent = () => {
     });
 
     const preferred = ["Women's Clothing", "Men's Clothing", "Girl's Clothing", "Boys's Clothings"];
-    const ordered = preferred.filter(cat => map.has(cat));
-    const finalOrder = ordered.length > 0 ? ordered : Array.from(map.keys()).slice(0, 4);
+    const all = Array.from(map.keys());
+    const pinned = preferred.filter(cat => map.has(cat));
+    const rest = all.filter(cat => !pinned.includes(cat)).sort((a, b) => a.localeCompare(b));
+    const finalOrder = [...pinned, ...rest];
 
     return finalOrder.map(category => ({ category, product: map.get(category) }));
   }, []);
@@ -208,8 +210,10 @@ const AppContent = () => {
     });
 
     const preferred = ["Women's Watches", "Men's Watches", "Girls' Watches", "Boys' Watches"];
-    const ordered = preferred.filter(cat => map.has(cat));
-    const finalOrder = ordered.length > 0 ? ordered : Array.from(map.keys()).slice(0, 4);
+    const all = Array.from(map.keys());
+    const pinned = preferred.filter(cat => map.has(cat));
+    const rest = all.filter(cat => !pinned.includes(cat)).sort((a, b) => a.localeCompare(b));
+    const finalOrder = [...pinned, ...rest];
 
     return finalOrder.map(category => ({ category, product: map.get(category) }));
   }, []);
