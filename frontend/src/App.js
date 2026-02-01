@@ -190,16 +190,28 @@ const AppContent = () => {
   const clothingCategoryCards = useMemo(() => {
     const map = new Map();
     clothingCatalog.forEach(p => {
-      if (!map.has(p.category) && p.image) map.set(p.category, p);
+      if (!p || !p.category || !p.image) return;
+      if (!map.has(p.category)) map.set(p.category, p);
     });
-    return Array.from(map.entries()).map(([category, product]) => ({ category, product }));
+
+    const preferred = ["Women's Clothing", "Men's Clothing", "Girl's Clothing", "Boys's Clothings"];
+    const ordered = preferred.filter(cat => map.has(cat));
+    const finalOrder = ordered.length > 0 ? ordered : Array.from(map.keys()).slice(0, 4);
+
+    return finalOrder.map(category => ({ category, product: map.get(category) }));
   }, []);
   const giftCategoryCards = useMemo(() => {
     const map = new Map();
     giftsCatalog.forEach(p => {
-      if (!map.has(p.category) && p.image) map.set(p.category, p);
+      if (!p || !p.category || !p.image) return;
+      if (!map.has(p.category)) map.set(p.category, p);
     });
-    return Array.from(map.entries()).map(([category, product]) => ({ category, product }));
+
+    const preferred = ["Women's Watches", "Men's Watches", "Girls' Watches", "Boys' Watches"];
+    const ordered = preferred.filter(cat => map.has(cat));
+    const finalOrder = ordered.length > 0 ? ordered : Array.from(map.keys()).slice(0, 4);
+
+    return finalOrder.map(category => ({ category, product: map.get(category) }));
   }, []);
 
   const catalogLookup = useMemo(() => {

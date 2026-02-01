@@ -2,7 +2,10 @@ const ALLOWED_HOSTS = new Set([
 	'pixabay.com',
 	'cdn.pixabay.com',
 	'images.unsplash.com',
-	'via.placeholder.com'
+	'via.placeholder.com',
+	'media-amazon.com',
+	'm.media-amazon.com',
+	'images-na.ssl-images-amazon.com'
 ]);
 
 const isAllowedHost = (url) => {
