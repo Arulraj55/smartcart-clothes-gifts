@@ -172,7 +172,7 @@ The search system implements:
    ```env
    NODE_ENV=development
    PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/mern-ecommerce-ml
+   MONGODB_URI=mongodb+srv://arulraj:Arul%402006@cluster-smartcart.oilosnj.mongodb.net/
    JWT_SECRET=your-super-secret-jwt-key
    REDIS_URL=redis://localhost:6379
    ```
@@ -200,8 +200,8 @@ The search system implements:
    ```
 
 The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- Frontend: https://smartcart-clothes-gifts-frontend.onrender.com
+- Backend API: https://smartcart-clothes-gifts-backend.onrender.com
 
 ## 📊 ML Features in Action
 

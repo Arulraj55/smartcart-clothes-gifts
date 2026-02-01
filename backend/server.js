@@ -6,6 +6,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // Import routes
@@ -47,25 +48,22 @@ app.use(morgan('combined', {
   skip: (req, res) => req.path.startsWith('/api/images/proxy')
 }));
 
-// CORS configuration (allow localhost on common dev ports + FRONTEND_URL(S) from env)
+// CORS configuration (allow production frontend + FRONTEND_URL(S) from env)
 const extraOrigins = [];
 if (process.env.FRONTEND_URL) extraOrigins.push(process.env.FRONTEND_URL);
 if (process.env.FRONTEND_URLS) extraOrigins.push(...process.env.FRONTEND_URLS.split(',').map(s => s.trim()).filter(Boolean));
+const normalizeOrigin = (value) => String(value || '').trim().replace(/\/$/, '');
 const allowedOrigins = new Set([
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
-  ...extraOrigins
-].filter(Boolean));
+  'https://smartcart-clothes-gifts-frontend.onrender.com',
+  ...extraOrigins.map(normalizeOrigin)
+].map(normalizeOrigin).filter(Boolean));
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (e.g., mobile apps, curl)
     if (!origin) return callback(null, true);
-    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
     const isNetlify = /^https?:\/\/([a-zA-Z0-9-]+)\.netlify\.app$/.test(origin);
-    if (allowedOrigins.has(origin) || isLocalhost || isNetlify) {
+    if (allowedOrigins.has(origin) || isNetlify) {
       return callback(null, true);
     }
     // Log disallowed origin for debugging
@@ -164,11 +162,26 @@ app.use('/images', (req, res, next) => {
 }));
 
 // Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static('public'));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+const publicDir = path.join(__dirname, 'public');
+const indexHtmlPath = path.join(publicDir, 'index.html');
+const hasBuiltFrontend = fs.existsSync(indexHtmlPath);
+
+// Root route: serve SPA if present, otherwise act as a backend health indicator
+app.get('/', (req, res) => {
+  if (process.env.NODE_ENV === 'production' && hasBuiltFrontend) {
+    return res.sendFile(indexHtmlPath);
+  }
+
+  return res.json({
+    status: 'SmartCart Backend Running',
+    health: '/health'
   });
+});
+
+// Serve static files in production only when a built frontend exists
+if (process.env.NODE_ENV === 'production' && hasBuiltFrontend) {
+  app.use(express.static(publicDir));
+  app.get('*', (req, res) => res.sendFile(indexHtmlPath));
 }
 
 // Error handling middleware (must be last)

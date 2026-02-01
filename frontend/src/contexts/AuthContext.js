@@ -16,15 +16,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Backend API base URL
-  // 1) Prefer explicit env (REACT_APP_API_BASE_URL), e.g. https://smartcart-clothes-gifts.onrender.com/api
-  // 2) If on localhost, use local backend
-  // 3) Otherwise, use relative '/api' (suitable when a host-level proxy is configured)
+  // 1) Prefer explicit env (REACT_APP_API_BASE_URL), e.g. https://smartcart-clothes-gifts-backend.onrender.com/api
+  // 2) Otherwise, use the production backend URL
   const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
   const API_BASE_URL = explicitBase
     ? explicitBase.replace(/\/$/, '') // strip trailing slash
-    : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:5000/api'
-        : '/api');
+    : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
   
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('window.location.hostname:', window.location.hostname);

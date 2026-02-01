@@ -30,11 +30,11 @@ A comprehensive authentication system with JWT tokens and email verification usi
    ```
 
 4. **Open your browser:**
-   Navigate to `http://localhost:3000`
+   Navigate to `https://smartcart-clothes-gifts-frontend.onrender.com`
 
 ## Frontend Interface
 
-The system now includes a complete frontend interface accessible at `http://localhost:3000`. The interface includes:
+The system now includes a complete frontend interface accessible at `https://smartcart-clothes-gifts-frontend.onrender.com`. The interface includes:
 
 ### **🎨 Pages Available:**
 
@@ -58,7 +58,7 @@ The system now includes a complete frontend interface accessible at `http://loca
 ## How to Use
 
 ### **1. Registration Flow:**
-1. Go to `http://localhost:3000`
+1. Go to `https://smartcart-clothes-gifts-frontend.onrender.com`
 2. Click "Create Account"
 3. Fill in your details (Name, Email, Password)
 4. Check your email for verification link
@@ -153,14 +153,14 @@ token-email-verification/
 ## Environment Configuration
 
 ```env
-MONGODB_URI=mongodb://localhost:27017/token_verification_db
+MONGODB_URI=mongodb+srv://arulraj:Arul%402006@cluster-smartcart.oilosnj.mongodb.net/
 PORT=3000
 JWT_SECRET=your_generated_secret_key
 JWT_EXPIRE=7d
 JWT_VERIFICATION_EXPIRE=24h
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=https://smartcart-clothes-gifts-frontend.onrender.com
 NODE_ENV=development
 ```
 
@@ -175,7 +175,7 @@ NODE_ENV=development
 ## Testing the System
 
 1. **Start the server:** `node server.js`
-2. **Open browser:** Go to `http://localhost:3000`
+2. **Open browser:** Go to `https://smartcart-clothes-gifts-frontend.onrender.com`
 3. **Test registration:** Create a new account
 4. **Check email:** Verify your email address
 5. **Test login:** Sign in with verified account

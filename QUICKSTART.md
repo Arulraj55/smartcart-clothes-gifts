@@ -45,15 +45,33 @@ npm run dev
 
 **That's it!** 🎉
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/health
+- Frontend: https://smartcart-clothes-gifts-frontend.onrender.com
+- Backend API: https://smartcart-clothes-gifts-backend.onrender.com
+- Health Check: https://smartcart-clothes-gifts-backend.onrender.com/health
+
+## 🖼️ Populate product images (Pexels)
+
+This repo keeps the catalogs in:
+- frontend/src/data/clothing-catalog.json
+- frontend/src/data/gifts-catalog.json
+
+To fetch real images using Pexels and update the catalogs (target: 1000 clothes + 500 gifts):
+
+```powershell
+cd backend
+$env:PEXELS_API_KEY="<your_pexels_key>"
+npm run update-images-pexels
+```
+
+Notes:
+- If you get rate-limited, increase delay: `node update-all-images-pexels.js --delayMs 1500`
+- You can test on a small subset first: `node update-all-images-pexels.js --limitClothes 20 --limitGifts 20`
 
 ## 🧠 Experience the ML Features
 
 ### 1. Create User Accounts
 ```bash
-# Visit http://localhost:3000/register
+# Visit https://smartcart-clothes-gifts-frontend.onrender.com/register
 # Create 2-3 different user accounts for testing
 ```
 
@@ -119,7 +137,7 @@ cd backend
 npm run seed
 
 # View data in MongoDB Compass
-# Connection: mongodb://localhost:27017/mern-ecommerce-ml
+# Connection: mongodb+srv://arulraj:Arul%402006@cluster-smartcart.oilosnj.mongodb.net/
 ```
 
 ## 🔧 Configuration Options
@@ -138,7 +156,7 @@ ML_SEARCH_RANKING_WEIGHTS={"relevance": 0.4, "popularity": 0.3, "user_preference
 ### Frontend Settings
 ```env
 # Environment variables (frontend/.env)
-REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=https://smartcart-clothes-gifts-backend.onrender.com/api
 REACT_APP_ML_ENABLED=true
 REACT_APP_ANALYTICS_ENABLED=true
 ```
@@ -152,9 +170,9 @@ ipconfig  # Windows
 ifconfig  # Mac/Linux
 
 # Update frontend .env
-REACT_APP_API_URL=http://YOUR_LOCAL_IP:5000/api
+REACT_APP_API_URL=https://smartcart-clothes-gifts-backend.onrender.com/api
 
-# Access from mobile: http://YOUR_LOCAL_IP:3000
+# Access from mobile: https://smartcart-clothes-gifts-frontend.onrender.com
 ```
 
 ## 🐳 Docker Setup (Alternative)
@@ -188,13 +206,13 @@ docker-compose down
 ### API Testing
 ```bash
 # Test recommendation endpoint
-curl "http://localhost:5000/api/recommendations?type=trending&limit=5"
+curl "https://smartcart-clothes-gifts-backend.onrender.com/api/recommendations?type=trending&limit=5"
 
 # Test search with ML ranking
-curl "http://localhost:5000/api/search?q=shirt&sortBy=ml_rank"
+curl "https://smartcart-clothes-gifts-backend.onrender.com/api/search?q=shirt&sortBy=ml_rank"
 
 # Test search suggestions
-curl "http://localhost:5000/api/search/suggestions?q=summ"
+curl "https://smartcart-clothes-gifts-backend.onrender.com/api/search/suggestions?q=summ"
 ```
 
 ## 🚨 Troubleshooting

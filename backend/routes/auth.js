@@ -246,9 +246,11 @@ router.post('/resend-verification', async (req, res) => {
         { $set: { tokenHash, expiresAt } }
       );
     }
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const baseUrlRaw = process.env.FRONTEND_URL || 'https://smartcart-clothes-gifts-frontend.onrender.com';
+    const baseUrl = String(baseUrlRaw).replace(/\/$/, '');
     const verifyUrl = `${baseUrl}/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
-  const apiBase = process.env.API_BASE_URL || process.env.API_base_URL || 'http://localhost:5000';
+  const apiBaseRaw = process.env.API_BASE_URL || process.env.API_base_URL || 'https://smartcart-clothes-gifts-backend.onrender.com';
+  const apiBase = String(apiBaseRaw).replace(/\/$/, '');
   const apiVerifyUrl = `${apiBase}/api/auth/verify-email?token=${plainToken}&email=${encodeURIComponent(normalizedEmail)}`;
     // Background resend (non-blocking)
     startEmailSend(normalizedEmail, verifyUrl, apiVerifyUrl);

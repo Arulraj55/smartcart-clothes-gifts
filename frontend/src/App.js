@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import './index.css';
 import './theme/tokens.css';
+import { resolveImageUrl } from './utils/resolveImageUrl';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import AboutUs from './components/AboutUs';
@@ -189,16 +190,16 @@ const AppContent = () => {
   const clothingCategoryCards = useMemo(() => {
     const map = new Map();
     clothingCatalog.forEach(p => {
-      if (!map.has(p.category) && p.image && p.image.startsWith('http')) map.set(p.category, p);
+      if (!map.has(p.category) && p.image) map.set(p.category, p);
     });
-    return Array.from(map.entries()).map(([category, product]) => ({ category, product })).slice(0, 12);
+    return Array.from(map.entries()).map(([category, product]) => ({ category, product }));
   }, []);
   const giftCategoryCards = useMemo(() => {
     const map = new Map();
     giftsCatalog.forEach(p => {
-      if (!map.has(p.category) && p.image && p.image.startsWith('http')) map.set(p.category, p);
+      if (!map.has(p.category) && p.image) map.set(p.category, p);
     });
-    return Array.from(map.entries()).map(([category, product]) => ({ category, product })).slice(0, 12);
+    return Array.from(map.entries()).map(([category, product]) => ({ category, product }));
   }, []);
 
   const catalogLookup = useMemo(() => {
@@ -250,7 +251,7 @@ const AppContent = () => {
   }, [wishlistProducts, cartItems, recentlyViewed, selectedProduct, getProductById]);
 
   const allDisplayableProducts = useMemo(() => (
-    [...clothingCatalog, ...giftsCatalog].filter(p => p.image && p.image.startsWith('http'))
+    [...clothingCatalog, ...giftsCatalog].filter(p => p.image)
   ), []);
 
   const personalizedSuggestions = useMemo(() => {
@@ -286,7 +287,7 @@ const AppContent = () => {
   // Suggested (random 10 clothes + 10 gifts, interleaved 2-2 pattern)
   const suggestedClothes = useMemo(() => {
     const seed = suggestedSeed || 0;
-    const valid = clothingCatalog.filter(p => p.image && p.image.startsWith('http'));
+    const valid = clothingCatalog.filter(p => p.image);
     const scored = valid.map((product, index) => {
       const numeric = typeof product.id === 'number' ? product.id : index;
       const value = Math.sin(seed + numeric * 17.23) * 10000;
@@ -297,7 +298,7 @@ const AppContent = () => {
   }, [suggestedSeed]);
   const suggestedGifts = useMemo(() => {
     const seed = suggestedSeed || 0;
-    const valid = giftsCatalog.filter(p => p.image && p.image.startsWith('http'));
+    const valid = giftsCatalog.filter(p => p.image);
     const scored = valid.map((product, index) => {
       const numeric = typeof product.id === 'number' ? product.id : index;
       const value = Math.sin(seed + numeric * 19.07) * 10000;
@@ -326,14 +327,12 @@ const AppContent = () => {
   const previewSuggestions = suggestionsToRender;
 
   // Backend API base
-  // Prefer explicit env (REACT_APP_API_BASE_URL, e.g. https://smartcart-clothes-gifts.onrender.com/api),
-  // otherwise use localhost in dev, else relative '/api'
+  // Prefer explicit env (REACT_APP_API_BASE_URL, e.g. https://smartcart-clothes-gifts-backend.onrender.com/api),
+  // otherwise use production backend URL
   const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
   const API_BASE_URL = explicitBase
     ? explicitBase.replace(/\/$/, '')
-    : ((typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-        ? 'http://localhost:5000/api'
-        : '/api');
+    : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
 
   // Sync cart from backend on login/load
   React.useEffect(() => {
@@ -613,7 +612,16 @@ const AppContent = () => {
                 {clothingCategoryCards.map(({ category, product }) => (
                   <div key={category} className="group cursor-pointer" onClick={() => goToClothes(category)}>
                     <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
-                      <img src={product.image} alt={category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img
+                        src={resolveImageUrl(product.image)}
+                        alt={category}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          if (product.image && e.currentTarget.src !== product.image) {
+                            e.currentTarget.src = product.image;
+                          }
+                        }}
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                         <span className="text-white text-sm font-semibold drop-shadow">{category}</span>
@@ -641,7 +649,16 @@ const AppContent = () => {
                 {giftCategoryCards.map(({ category, product }) => (
                   <div key={category} className="group cursor-pointer" onClick={() => goToGifts(category)}>
                     <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
-                      <img src={product.image} alt={category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img
+                        src={resolveImageUrl(product.image)}
+                        alt={category}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          if (product.image && e.currentTarget.src !== product.image) {
+                            e.currentTarget.src = product.image;
+                          }
+                        }}
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                         <span className="text-white text-sm font-semibold drop-shadow">{category}</span>

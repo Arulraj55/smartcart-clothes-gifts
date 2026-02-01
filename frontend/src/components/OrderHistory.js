@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './OrderHistory.css';
+import { resolveImageUrl } from '../utils/resolveImageUrl';
 
 const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
   const [orders, setOrders] = useState([]);
@@ -15,10 +16,8 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
         const token = localStorage.getItem('token');
         const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
         const API_BASE_URL = explicitBase
-          ? explicitBase
-          : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:5000/api'
-            : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
+          ? explicitBase.replace(/\/$/, '')
+          : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
 
         if (user && token) {
           // Fetch backend orders only
@@ -228,7 +227,7 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
                     <h4>📦 Items ({selectedOrder.items.length})</h4>
                     <div className="items-list-grid">
                       {selectedOrder.items.map((item,i)=>{
-                        const proxied = item.image || '';
+                        const proxied = resolveImageUrl(item.image || '');
                         return (
                           <div className="itm" key={i}>
                             <div className="thumb-wrap"><img src={proxied} alt={item.name} /></div>
@@ -264,7 +263,9 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
                         try {
                           const token = localStorage.getItem('token');
                           const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
-                          const API_BASE_URL = explicitBase ? explicitBase : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/api' : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
+                          const API_BASE_URL = explicitBase
+                            ? explicitBase.replace(/\/$/, '')
+                            : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
                           const res = await fetch(`${API_BASE_URL}/orders/cancel/${selectedOrder.id}`, { method:'PUT', headers:{ 'Authorization':`Bearer ${token}` }});
                           if(res.ok){ alert('Order cancelled.'); setSelectedOrder({ ...selectedOrder, status:'cancelled'}); } else { alert('Unable to cancel now.'); }
                         } catch { alert('Error cancelling order.'); }
