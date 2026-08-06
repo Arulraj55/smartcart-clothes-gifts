@@ -388,22 +388,29 @@ const AppContent = () => {
 
         {currentPage === 'wishlist' && (
           <WishlistPage
-            wishlistItems={wishlistProducts}
-            onRemoveWishlist={toggleWishlist}
+            products={wishlistProducts}
+            onToggleWishlist={toggleWishlist}
             onAddToCart={addToCart}
             onViewProduct={handleViewProduct}
+            isAuthenticated={isAuthenticated}
+            onAuthRequired={() => { setAuthMode('login'); setShowAuthModal(true); }}
+            onBrowseClothes={() => navigate('clothes')}
+            onBrowseGifts={() => navigate('footwear')}
+            onBackHome={() => navigate('home')}
           />
         )}
 
         {currentPage === 'my-orders' && (
-          <OrderHistory onNavigate={navigate} />
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <OrderHistory user={user} onClose={() => navigate('home')} onNavigate={navigate} variant="page" />
+          </div>
         )}
       </main>
 
       {/* Cart Drawer */}
       {showCart && (
         <Cart
-          items={cartItems}
+          cartItems={cartItems}
           onClose={() => setShowCart(false)}
           onUpdateQuantity={updateQuantity}
           onRemoveItem={removeFromCart}
@@ -414,12 +421,12 @@ const AppContent = () => {
       {/* Checkout Modal */}
       {showCheckout && (
         <Checkout
-          items={cartItems}
+          cartItems={cartItems}
+          user={user}
           onClose={() => setShowCheckout(false)}
-          onComplete={() => {
+          onOrderComplete={() => {
             setCartItems([]);
             setShowCheckout(false);
-            alert('🎉 Order placed successfully!');
             navigate('my-orders');
           }}
         />
