@@ -1,0 +1,38 @@
+{
+  "clothes": {
+    "Tops & Tunics": "http://assets.myntassets.com/assets/images/17060030/2022/2/24/e4204043-833d-43f8-9e0d-66e5c1e180bf1645692348343NiharikaaoffwhiteelbowSquareneckpaddedblousewithsequienswork1.jpg",
+    "Jeans": "http://assets.myntassets.com/assets/images/18207452/2022/5/10/f626f228-bc5b-4d2d-a4b5-e5c65b33f8de1652157044120TokyoTalkiesWomenBlackBootcutMildlyDistressedJeans1.jpg",
+    "Shirts & Blouses": "http://assets.myntassets.com/assets/images/19230136/2022/7/22/ae183642-7245-4e52-8b76-63bc81cac9a11658510267776Tops1.jpg",
+    "Kurtas & Kurtis": "http://assets.myntassets.com/assets/images/15508918/2021/10/6/b1732025-43d1-4413-9843-090cd40a6f591633518810684-Indo-Era-Women-Yellow-Floral-Yoke-Design-Regular-Kurta-with--1.jpg",
+    "Trousers & Pants": "http://assets.myntassets.com/assets/images/18838354/2022/6/23/6ce90d98-8b9a-480f-a5f7-1a1f1015f2991655980184546PrintedHighRiseWideLegPants1.jpg",
+    "Jackets & Coats": "http://assets.myntassets.com/assets/images/15953778/2021/11/25/38a12098-a339-44c9-b61f-742177500c8a1637832519478-Columbia-Women-Orange--Black-Colourblocked-Whirlibird-IV-Int-1.jpg",
+    "Sarees": "http://assets.myntassets.com/assets/images/18286434/2022/7/29/657f65b2-9eeb-4ba4-9945-b5592f74546d1659095544614VASTRANANDRedFloralBeadsandStonesOrganzaSaree1.jpg",
+    "Lehengas": "http://assets.myntassets.com/assets/images/17638528/2022/3/25/fbba3544-ea11-4288-95e7-f6fe067447401648189446888VSALESWomenPinkLehengaCholi1.jpg",
+    "Dupattas & Stoles": "http://assets.myntassets.com/assets/images/productimage/2021/3/31/9bfecb94-87b8-4e0f-b328-7c672c6dd66e1617175465207-1.jpg",
+    "Sweaters & Sweatshirts": "http://assets.myntassets.com/assets/images/15187670/2021/8/18/7fa49390-807d-439e-b864-9753dc7493dc162928777668298DegreeNorthsGreyFullSleevesSweater1.jpg",
+    "Dresses & Gowns": "http://assets.myntassets.com/assets/images/16679508/2022/7/20/d32b281c-4b34-448a-8e92-7070a01a7c121658295805148-DressBerry-Women-Grey-Skinny-Fit-Heavy-Fade-Stretchable-Jean-1.jpg",
+    "T-Shirts": "http://assets.myntassets.com/assets/images/16084996/2021/11/13/868b800d-f963-41ec-baf3-a0f381bae30c1636804878373GingerbyLifestyleWomenPinkPrintedSweatshirt1.jpg",
+    "Shrugs": "http://assets.myntassets.com/assets/images/2402042/2018/1/17/11516190863484-Espresso-Womens-Waterfall-Long-Shrug-4541516190863411-1.jpg",
+    "Co-ord Sets": "http://assets.myntassets.com/assets/images/18070200/2022/4/28/a2c2a9a4-e0e9-47cd-87b2-a4769cd743f01651131073730Co-Ords1.jpg",
+    "Skirts": "http://assets.myntassets.com/assets/images/11155552/2019/12/16/4ef723be-66f7-4e70-aa18-e42c3bd8b4a21576486759345-Marie-Claire-Women-Skirts-1601576486757775-1.jpg",
+    "Jumpsuits & Playsuits": "http://assets.myntassets.com/assets/images/17011456/2022/3/28/9e654271-501c-4511-9f0d-bffb22ba8e681648452467254-Chemistry-Women-Jumpsuit-2941648452466709-1.jpg",
+    "Innerwear & Sleepwear": "http://assets.myntassets.com/assets/images/15632632/2022/3/25/b2d93f50-eaec-4539-8bc8-7e691fcee99d1648187943834-URBANIC-Women-White-Cotton-Wide-Leg-Denim-Shorts-67716481879-11.jpg",
+    "Shorts": "http://assets.myntassets.com/assets/images/18730920/2022/6/14/5f42975c-43cd-4a2d-8dd5-a23398e1743c1655206466859Forever21SolidActiveShorts1.jpg"
+  },
+  "footwear": {
+    "Flats": "https://m.media-amazon.com/images/I/51rHrC7np-L._AC_UL320_.jpg",
+    "Slippers": "https://m.media-amazon.com/images/I/61GuOvznmGL._AC_UL320_.jpg",
+    "Heels": "https://img.ltwebstatic.com/images3_pi/2023/10/24/0c/1698078999a7dd3550b4535ccb4500d1fbe41bf3cf_thumbnail_900x.webp",
+    "Loafers": "https://img.ltwebstatic.com/images3_spmp/2024/03/14/28/17103465945ae4fb52398b2d4014743ae91ec551c1_thumbnail_900x.webp",
+    "Sandals": "https://img.ltwebstatic.com/images3_pi/2024/04/05/c8/1712329190769f4da4bb0dd02dc9215724d62a7a55_thumbnail_900x.webp",
+    "Sneakers": "https://m.media-amazon.com/images/I/61ZFyHUj4wL._AC_UL320_.jpg",
+    "Casual Shoes": "https://m.media-amazon.com/images/I/71oI9VDcYfL._AC_UL320_.jpg",
+    "Canvas & Skate Shoes": "https://m.media-amazon.com/images/I/617bombukZL._AC_UL320_.jpg",
+    "Boots": "https://m.media-amazon.com/images/I/81BwEgkHo+L._AC_UL320_.jpg",
+    "Dress & Oxford Shoes": "https://m.media-amazon.com/images/I/719r8ZbRl5L._AC_UL320_.jpg",
+    "Western & Cowboy Boots": "https://m.media-amazon.com/images/I/61nnhb+hgKL._AC_UL320_.jpg",
+    "Rain & Snow Boots": "https://m.media-amazon.com/images/I/61mVUcjHk9L._AC_UL320_.jpg",
+    "Clogs": "https://m.media-amazon.com/images/I/81Vekenn4lL._AC_UL320_.jpg",
+    "Cleats & Sports Shoes": "https://m.media-amazon.com/images/I/71ln-duTOjL._AC_UL320_.jpg"
+  }
+}

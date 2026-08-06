@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { resolveImageUrl } from '../utils/resolveImageUrl';
 
 const Cart = ({ cartItems = [], onUpdateQuantity, onRemoveItem, onCheckout, onClose }) => {
   const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
@@ -190,7 +191,7 @@ const Cart = ({ cartItems = [], onUpdateQuantity, onRemoveItem, onCheckout, onCl
                         boxShadow: '0 8px 24px -8px rgba(0,0,0,0.1)'
                       }}>
                         <img
-                          src={item.image || ''}
+                          src={resolveImageUrl(item.image || '')}
                           alt={item.name}
                           style={{ 
                             width: '100%', 

@@ -5,7 +5,7 @@ import PageHero from './layout/PageHero';
 import { useAuth } from '../contexts/AuthContext';
 import giftsCatalog from '../data/gifts-catalog.json';
 
-const FilterModal = ({ isOpen, onClose, onApplyFilters }) => {
+const FilterModal = ({ isOpen, onClose, onApplyFilters, categories }) => {
   const [tempFilters, setTempFilters] = useState({
     category: '',
     priceRange: '',
@@ -73,15 +73,9 @@ const FilterModal = ({ isOpen, onClose, onApplyFilters }) => {
             }}
           >
             <option value="">All Categories</option>
-            <option value="Baby & Kids">Baby & Kids</option>
-            <option value="Kitchen & Dining">Kitchen & Dining</option>
-            <option value="Leather Goods">Leather Goods</option>
-            <option value="Jewelry">Jewelry</option>
-            <option value="Home Decor">Home Decor</option>
-            <option value="Bath & Beauty">Bath & Beauty</option>
-            <option value="Personalized">Personalized</option>
-            <option value="Tech & Electronics">Tech & Electronics</option>
-            <option value="Gifts & Accessories">Gifts & Accessories</option>
+            {(categories || []).map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
           </select>
         </div>
 
@@ -198,9 +192,15 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
   // Only use products with available images
   const processedGifts = useMemo(() => {
     return giftsCatalog.filter(product => {
-      return product.image && product.image.startsWith('http');
+      return Boolean(product.image);
     });
   }, []);
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set((processedGifts || []).map(item => item.category).filter(Boolean)));
+    unique.sort((a, b) => a.localeCompare(b));
+    return unique;
+  }, [processedGifts]);
 
   // Filtering and searching logic
   const filteredGifts = useMemo(() => {
@@ -493,7 +493,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
     {paginatedGifts.length > 0 ? (
   <div style={{ width:'100%', margin:'2.25rem 0 0', display:'grid', gap:'1.75rem', gridTemplateColumns:'repeat(4, 1fr)' }}>
           {paginatedGifts.map(gift => {
-            if (!gift.image || !gift.image.startsWith('http')) return null;
+                  if (!gift.image) return null;
             return (
               <ModernProductCard
                 key={gift.id}
@@ -598,6 +598,7 @@ const GiftsPage = ({ onAddToCart, isAuthenticated, onAuthRequired, onViewProduct
         isOpen={showFilterModal}
         onClose={() => setShowFilterModal(false)}
         onApplyFilters={handleApplyFilters}
+        categories={categories}
       />
       </div>
     </div>

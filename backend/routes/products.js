@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     // For demo purposes, return sample data
-    let products = [...sampleData.clothes, ...sampleData.gifts];
+    let products = [...sampleData.clothes, ...(sampleData.footwear || sampleData.gifts || [])];
 
     // Apply filters
     if (category) {

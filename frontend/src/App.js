@@ -1,32 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import './index.css';
 import './theme/tokens.css';
-import { resolveImageUrl } from './utils/resolveImageUrl';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
-import AboutUs from './components/AboutUs';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import OrderHistory from './components/OrderHistory';
 import ClothesPage from './components/ClothesPage';
-import GiftsPage from './components/GiftsPage';
+import FootwearPage from './components/FootwearPage';
 import WishlistPage from './components/WishlistPage';
+import ProductDetail from './components/ProductDetail';
 import clothingCatalog from './data/clothing-catalog.json';
-import giftsCatalog from './data/gifts-catalog.json';
-// New UI components
+import footwearCatalog from './data/footwear-catalog.json';
+
+// UI components
 import Navbar from './components/layout/Navbar';
 import HeroBanner from './components/home/HeroBanner';
-// Removed CategoryStrip per updated homepage simplification
+import CategoryGrid from './components/home/CategoryGrid';
 import ModernProductCard from './components/product/ModernProductCard';
-
-// (Removed unused legacy ProductCard and Header components)
-
-// Using imported Cart component from './components/Cart'
+import { getPersonalizedMLSuggestions } from './utils/mlRecommendationEngine';
 
 const PAGE_PATHS = {
   home: '/',
   clothes: '/clothes',
-  gifts: '/gifts',
+  footwear: '/footwear',
   wishlist: '/wishlist',
   'verify-email': '/verify-email',
   product: '/product',
@@ -38,37 +35,40 @@ const resolveInitialPage = () => {
   const { pathname } = window.location;
   if (pathname.startsWith(PAGE_PATHS['verify-email'])) return 'verify-email';
   if (pathname.startsWith(PAGE_PATHS.clothes)) return 'clothes';
-  if (pathname.startsWith(PAGE_PATHS.gifts)) return 'gifts';
+  if (pathname.startsWith(PAGE_PATHS.footwear)) return 'footwear';
   if (pathname.startsWith(PAGE_PATHS.wishlist)) return 'wishlist';
   if (pathname.startsWith(PAGE_PATHS.product)) return 'product';
   if (pathname.startsWith(PAGE_PATHS['my-orders'])) return 'my-orders';
   return 'home';
 };
 
-// Main App Component
 const AppContent = () => {
-  // Debug: verify components at runtime
-  // eslint-disable-next-line no-console
-  console.log('DEBUG render AppContent types:', {
-    AboutUs: typeof AboutUs,
-    ClothesPage: typeof ClothesPage,
-    GiftsPage: typeof GiftsPage,
-    Cart: typeof Cart,
-    AuthModal: typeof AuthModal,
-    Checkout: typeof Checkout,
-    OrderHistory: typeof OrderHistory
-  });
   const [cartItems, setCartItems] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [currentPage, setCurrentPageState] = useState(resolveInitialPage);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [activeClothingCategory, setActiveClothingCategory] = useState('All');
-  const [activeGiftCategory, setActiveGiftCategory] = useState('All');
-  const [suggestedSeed, setSuggestedSeed] = useState(Date.now());
+  const [activeFootwearCategory, setActiveFootwearCategory] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // User Experience State for ML Recommendation Engine
+  const [userExperience, setUserExperience] = useState(() => {
+    if (typeof window === 'undefined') return { clickedProducts: [], boughtProducts: [], clickedCategories: {}, clickedColors: {} };
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('smartcart:userExperience') || '{}');
+      return {
+        clickedProducts: saved.clickedProducts || [],
+        boughtProducts: saved.boughtProducts || [],
+        clickedCategories: saved.clickedCategories || {},
+        clickedColors: saved.clickedColors || {}
+      };
+    } catch {
+      return { clickedProducts: [], boughtProducts: [], clickedCategories: {}, clickedColors: {} };
+    }
+  });
+
   const [wishlist, setWishlist] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -78,19 +78,10 @@ const AppContent = () => {
       return [];
     }
   });
-  const [recentlyViewed, setRecentlyViewed] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = JSON.parse(window.localStorage.getItem('smartcart:recentlyViewed') || '[]');
-      return Array.isArray(saved) ? saved.map((id) => String(id)) : [];
-    } catch {
-      return [];
-    }
-  });
 
   const { user, logout, isAuthenticated, loading } = useAuth();
 
-  const navigate = React.useCallback(
+  const navigate = useCallback(
     (page, { replace = false, state = {}, skipHistory = false } = {}) => {
       setCurrentPageState(page);
       if (skipHistory || typeof window === 'undefined') return;
@@ -102,453 +93,120 @@ const AppContent = () => {
         window.history.pushState(historyState, '', targetPath);
       }
     },
-    [setCurrentPageState]
+    []
   );
 
-  const goToClothes = React.useCallback((category = 'All') => {
-    setActiveClothingCategory(category);
-    navigate('clothes', { state: { clothingCategory: category } });
-  }, [navigate, setActiveClothingCategory]);
-
-  const goToGifts = React.useCallback((category = 'All') => {
-    setActiveGiftCategory(category);
-    navigate('gifts', { state: { giftCategory: category } });
-  }, [navigate, setActiveGiftCategory]);
-
-  const handleViewProduct = React.useCallback((product) => {
+  // Record user interaction for ML Recommendation Engine
+  const recordUserInteraction = useCallback((product, actionType = 'click') => {
     if (!product) return;
-    const productId = product._id || product.id;
-    if (productId) {
-      const idString = String(productId);
-      setRecentlyViewed(prev => {
-        const without = prev.filter(id => id !== idString);
-        return [idString, ...without].slice(0, 20);
-      });
-    }
-    setSelectedProduct(product);
-    navigate('product', { state: { product } });
-  }, [navigate, setRecentlyViewed, setSelectedProduct]);
+    setUserExperience((prev) => {
+      const clickedProducts = [product, ...prev.clickedProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 30);
+      const boughtProducts = actionType === 'buy' 
+        ? [product, ...prev.boughtProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 30)
+        : prev.boughtProducts;
 
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const initialState = { page: currentPage };
-    if (currentPage === 'clothes') initialState.clothingCategory = activeClothingCategory;
-    if (currentPage === 'gifts') initialState.giftCategory = activeGiftCategory;
-    if (currentPage === 'product' && selectedProduct) initialState.product = selectedProduct;
-    window.history.replaceState(initialState, '', window.location.pathname);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      const categoryWeight = actionType === 'buy' ? 3 : 1;
+      const colorWeight = actionType === 'buy' ? 3 : 1;
 
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handlePopState = (event) => {
-      const state = event.state || {};
-      const nextPage = state.page || resolveInitialPage();
-      setCurrentPageState(nextPage);
-      if (nextPage === 'clothes') {
-        setActiveClothingCategory(state.clothingCategory || 'All');
-      }
-      if (nextPage === 'gifts') {
-        setActiveGiftCategory(state.giftCategory || 'All');
-      }
-      if (nextPage === 'product') {
-        if (state.product) {
-          setSelectedProduct(state.product);
-        } else {
-          setSelectedProduct(null);
-        }
-      } else {
-        setSelectedProduct(null);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [setActiveClothingCategory, setActiveGiftCategory, setCurrentPageState, setSelectedProduct]);
+      const cat = product.category || 'Apparel';
+      const col = product.color || 'Default';
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [currentPage]);
+      const clickedCategories = {
+        ...prev.clickedCategories,
+        [cat]: (prev.clickedCategories[cat] || 0) + categoryWeight
+      };
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('smartcart:wishlist', JSON.stringify(wishlist));
-    }
-  }, [wishlist]);
+      const clickedColors = {
+        ...prev.clickedColors,
+        [col]: (prev.clickedColors[col] || 0) + colorWeight
+      };
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('smartcart:recentlyViewed', JSON.stringify(recentlyViewed));
-    }
-  }, [recentlyViewed]);
-
-  // Category extraction
-  // (Removed unused clothingCategories & giftCategories arrays)
-
-  // One representative image per category (first product with image)
-  const clothingCategoryCards = useMemo(() => {
-    const map = new Map();
-    clothingCatalog.forEach(p => {
-      if (!p || !p.category || !p.image) return;
-      if (!map.has(p.category)) map.set(p.category, p);
-    });
-
-    const preferred = ["Women's Clothing", "Men's Clothing", "Girl's Clothing", "Boys's Clothings"];
-    const all = Array.from(map.keys());
-    const pinned = preferred.filter(cat => map.has(cat));
-    const rest = all.filter(cat => !pinned.includes(cat)).sort((a, b) => a.localeCompare(b));
-    const finalOrder = [...pinned, ...rest];
-
-    return finalOrder.map(category => ({ category, product: map.get(category) }));
-  }, []);
-  const giftCategoryCards = useMemo(() => {
-    const map = new Map();
-    giftsCatalog.forEach(p => {
-      if (!p || !p.category || !p.image) return;
-      if (!map.has(p.category)) map.set(p.category, p);
-    });
-
-    const preferred = ["Women's Watches", "Men's Watches", "Girls' Watches", "Boys' Watches"];
-    const all = Array.from(map.keys());
-    const pinned = preferred.filter(cat => map.has(cat));
-    const rest = all.filter(cat => !pinned.includes(cat)).sort((a, b) => a.localeCompare(b));
-    const finalOrder = [...pinned, ...rest];
-
-    return finalOrder.map(category => ({ category, product: map.get(category) }));
-  }, []);
-
-  const catalogLookup = useMemo(() => {
-    const map = new Map();
-    const register = (key, product) => {
-      if (key === undefined || key === null) return;
-      const str = String(key);
-      if (!map.has(str)) map.set(str, product);
-    };
-    [...clothingCatalog, ...giftsCatalog].forEach(product => {
-      register(product.id, product);
-      register(product._id, product);
-    });
-    return map;
-  }, []);
-
-  const getProductById = React.useCallback((id) => {
-    if (id === undefined || id === null) return null;
-    return catalogLookup.get(String(id)) || null;
-  }, [catalogLookup]);
-
-  const wishlistProducts = useMemo(() => wishlist
-    .map(id => getProductById(id))
-    .filter(Boolean), [wishlist, getProductById]);
-
-  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
-  const cartIdSet = useMemo(() => new Set(cartItems.map(item => String(item.id))), [cartItems]);
-
-  const userPreferenceData = useMemo(() => {
-    const categoryScores = new Map();
-    const collectionScores = new Map();
-    const bump = (product, weight) => {
-      if (!product) return;
-      if (product.category) {
-        categoryScores.set(product.category, (categoryScores.get(product.category) || 0) + weight);
-      }
-      const collection = product.collection || product.brand;
-      if (collection) {
-        collectionScores.set(collection, (collectionScores.get(collection) || 0) + weight);
-      }
-    };
-
-    wishlistProducts.forEach(product => bump(product, 4));
-    cartItems.forEach(item => bump(getProductById(item.id), 6));
-    recentlyViewed.forEach(id => bump(getProductById(id), 3));
-    if (selectedProduct) bump(selectedProduct, 5);
-
-    return { categoryScores, collectionScores };
-  }, [wishlistProducts, cartItems, recentlyViewed, selectedProduct, getProductById]);
-
-  const allDisplayableProducts = useMemo(() => (
-    [...clothingCatalog, ...giftsCatalog].filter(p => p.image)
-  ), []);
-
-  const personalizedSuggestions = useMemo(() => {
-    const { categoryScores, collectionScores } = userPreferenceData;
-    const recencyBoost = new Map();
-    recentlyViewed.forEach((id, index) => {
-      const weight = Math.max(0, 1 - (index * 0.08));
-      recencyBoost.set(id, weight * 4);
-    });
-
-    const scored = allDisplayableProducts.map(product => {
-      const key = String(product._id || product.id);
-      const numericSeed = typeof product.id === 'number'
-        ? product.id
-        : parseInt(key.replace(/[^0-9]/g, ''), 10) || 0;
-      const randomJitter = ((Math.sin(suggestedSeed + numericSeed) + 1) / 2) * 0.4;
-      const categoryBoost = categoryScores.get(product.category) || 0;
-      const collectionKey = product.collection || product.brand;
-      const collectionBoost = collectionKey ? (collectionScores.get(collectionKey) || 0) : 0;
-      const wishlistBoost = wishlistSet.has(key) ? 6 : 0;
-      const cartBoost = cartIdSet.has(key) ? 7 : 0;
-      const recency = recencyBoost.get(key) || 0;
-      const score = categoryBoost + collectionBoost + wishlistBoost + cartBoost + recency + randomJitter;
-      return { product, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const positives = scored.filter(entry => entry.score > 0);
-    const top = (positives.length >= 24 ? positives.slice(0, 24) : scored.slice(0, 24)).map(entry => entry.product);
-    return top;
-  }, [allDisplayableProducts, userPreferenceData, wishlistSet, cartIdSet, recentlyViewed, suggestedSeed]);
-
-  // Suggested (random 10 clothes + 10 gifts, interleaved 2-2 pattern)
-  const suggestedClothes = useMemo(() => {
-    const seed = suggestedSeed || 0;
-    const valid = clothingCatalog.filter(p => p.image);
-    const scored = valid.map((product, index) => {
-      const numeric = typeof product.id === 'number' ? product.id : index;
-      const value = Math.sin(seed + numeric * 17.23) * 10000;
-      return { product, score: value - Math.floor(value) };
-    });
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map(entry => entry.product).slice(0, 10);
-  }, [suggestedSeed]);
-  const suggestedGifts = useMemo(() => {
-    const seed = suggestedSeed || 0;
-    const valid = giftsCatalog.filter(p => p.image);
-    const scored = valid.map((product, index) => {
-      const numeric = typeof product.id === 'number' ? product.id : index;
-      const value = Math.sin(seed + numeric * 19.07) * 10000;
-      return { product, score: value - Math.floor(value) };
-    });
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map(entry => entry.product).slice(0, 10);
-  }, [suggestedSeed]);
-
-  // Interleave: 2 clothes, 2 gifts, repeat (5 rows of 4 items = 20 total)
-  const suggestionsToRender = useMemo(() => {
-    const interleaved = [];
-    const clothesCount = suggestedClothes.length;
-    const giftsCount = suggestedGifts.length;
-    let ci = 0, gi = 0;
-    while (interleaved.length < 20 && (ci < clothesCount || gi < giftsCount)) {
-      // Add 2 clothes
-      if (ci < clothesCount) interleaved.push(suggestedClothes[ci++]);
-      if (ci < clothesCount) interleaved.push(suggestedClothes[ci++]);
-      // Add 2 gifts
-      if (gi < giftsCount) interleaved.push(suggestedGifts[gi++]);
-      if (gi < giftsCount) interleaved.push(suggestedGifts[gi++]);
-    }
-    return interleaved;
-  }, [suggestedClothes, suggestedGifts]);
-  const previewSuggestions = suggestionsToRender;
-
-  // Backend API base
-  // Prefer explicit env (REACT_APP_API_BASE_URL, e.g. https://smartcart-clothes-gifts-backend.onrender.com/api),
-  // otherwise use production backend URL
-  const explicitBase = (process.env.REACT_APP_API_BASE_URL || '').trim();
-  const API_BASE_URL = explicitBase
-    ? explicitBase.replace(/\/$/, '')
-    : 'https://smartcart-clothes-gifts-backend.onrender.com/api';
-
-  // Sync cart from backend on login/load
-  React.useEffect(() => {
-    const fetchCart = async () => {
-      if (!isAuthenticated) { setCartItems([]); return; }
+      const nextExp = { clickedProducts, boughtProducts, clickedCategories, clickedColors };
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE_URL}/cart`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error('cart fetch failed');
-        const data = await res.json();
-        const items = (data.cart?.items || []).map(ci => {
-          const pid = ci.product?._id || ci.product;
-          const pidNum = parseInt(pid, 10);
-          const fromCatalog = !isNaN(pidNum)
-            ? (clothingCatalog.find(p => p.id === pidNum) || giftsCatalog.find(p => p.id === pidNum))
-            : null;
-          return {
-            id: pid,
-            name: ci.name || fromCatalog?.name || ci.product?.name || 'Product',
-            image: ci.image || fromCatalog?.image || ci.product?.image || '',
-            price: typeof ci.price === 'number' && ci.price > 0 ? ci.price : (fromCatalog?.price || ci.product?.price || 0),
-            quantity: ci.quantity,
-            size: ci.size,
-            color: ci.color
-          };
-        });
-        setCartItems(items);
-      } catch {
-        // keep current state if backend not reachable
-      }
-    };
-    fetchCart();
-  }, [isAuthenticated, API_BASE_URL]);
+        window.localStorage.setItem('smartcart:userExperience', JSON.stringify(nextExp));
+      } catch {}
+      return nextExp;
+    });
+  }, []);
+
+  const handleViewProduct = useCallback((product) => {
+    recordUserInteraction(product, 'click');
+    setSelectedProduct(product);
+  }, [recordUserInteraction]);
+
+  const handleSelectCategory = useCallback((type, category) => {
+    if (type === 'clothes') {
+      setActiveClothingCategory(category);
+      navigate('clothes');
+    } else {
+      setActiveFootwearCategory(category);
+      navigate('footwear');
+    }
+  }, [navigate]);
+
+  const wishlistSet = useMemo(() => new Set(wishlist.map(id => String(id))), [wishlist]);
+  const wishlistProducts = useMemo(() => {
+    const all = [...clothingCatalog, ...footwearCatalog];
+    return all.filter(p => wishlistSet.has(String(p.id || p._id)));
+  }, [wishlistSet]);
+
+  // ML Personalised Suggestions ("Suggested For You")
+  const suggestedProducts = useMemo(() => {
+    return getPersonalizedMLSuggestions(userExperience, 20);
+  }, [userExperience]);
 
   const addToCart = async (product) => {
-    if (!isAuthenticated) { setShowAuthModal(true); return; }
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/cart/add`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          productId: product._id || product.id,
-          quantity: 1,
-          size: 'M',
-          color: 'Default',
-          name: product.name,
-          image: product.image || product.images?.[0] || '',
-          price: product.price
-        })
-      });
-      if (!res.ok) throw new Error('add failed');
-      const data = await res.json();
-      const items = (data.cart?.items || []).map(ci => {
-        const pid = ci.product?._id || ci.product;
-        const pidNum = parseInt(pid, 10);
-        const fromCatalog = !isNaN(pidNum)
-          ? (clothingCatalog.find(p => p.id === pidNum) || giftsCatalog.find(p => p.id === pidNum))
-          : null;
-        return {
-          id: pid,
-          name: ci.name || fromCatalog?.name || ci.product?.name || 'Product',
-          image: ci.image || fromCatalog?.image || ci.product?.image || '',
-          price: typeof ci.price === 'number' && ci.price > 0 ? ci.price : (fromCatalog?.price || ci.product?.price || 0),
-          quantity: ci.quantity,
-          size: ci.size,
-          color: ci.color
-        };
-      });
-      setCartItems(items);
-      return true;
-    } catch {
-      // fallback update local for UX
-      setCartItems(prev => {
-        const existing = prev.find(i => i.id === (product._id || product.id));
-        if (existing) return prev.map(i => i.id === (product._id || product.id) ? { ...i, quantity: (i.quantity||1)+1 } : i);
-        return [...prev, { id: product._id || product.id, name: product.name, image: product.image, price: product.price, quantity: 1 }];
-      });
-      return false;
-    }
+    recordUserInteraction(product, 'buy');
+    setCartItems(prev => {
+      const pid = String(product.id || product._id);
+      const existing = prev.find(i => String(i.id) === pid);
+      if (existing) {
+        return prev.map(i => String(i.id) === pid ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, {
+        id: pid,
+        name: product.name,
+        image: product.image || product.images?.[0] || '',
+        price: product.discounted_price || product.price || 0,
+        quantity: 1,
+        size: product.sizes?.[0] || 'M',
+        color: product.color || 'Default'
+      }];
+    });
+    return true;
   };
 
   const buyNow = async (product) => {
-    const ok = await addToCart(product);
+    await addToCart(product);
     setShowCheckout(true);
-    return ok;
+    return true;
   };
 
-  const toggleWishlist = React.useCallback((product) => {
+  const toggleWishlist = useCallback((product) => {
     if (!product) return;
-    const productId = product._id || product.id;
-    if (!productId) return;
-    const idString = String(productId);
-    setWishlist(prev => (
-      prev.includes(idString)
-        ? prev.filter(id => id !== idString)
-        : [...prev, idString]
-    ));
+    const pid = String(product.id || product._id);
+    setWishlist(prev => {
+      const next = prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid];
+      try {
+        window.localStorage.setItem('smartcart:wishlist', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   }, []);
 
-  const updateQuantity = async (id, newQuantity) => {
-    if (newQuantity <= 0) { removeFromCart(id); return; }
-    try {
-      const token = localStorage.getItem('token');
-      // Need itemId; find matching backend item by product id
-      const resCart = await fetch(`${API_BASE_URL}/cart`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await resCart.json();
-      const item = (data.cart?.items || []).find(ci => (ci.product?._id || ci.product) === id);
-      const itemId = item?._id;
-      if (!itemId) throw new Error('no itemId');
-      const res = await fetch(`${API_BASE_URL}/cart/update/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ quantity: newQuantity })
-      });
-      if (!res.ok) throw new Error('update failed');
-      const upd = await res.json();
-      const items = (upd.cart?.items || []).map(ci => {
-        const pid = ci.product?._id || ci.product;
-        const pidNum = parseInt(pid, 10);
-        const fromCatalog = !isNaN(pidNum)
-          ? (clothingCatalog.find(p => p.id === pidNum) || giftsCatalog.find(p => p.id === pidNum))
-          : null;
-        return {
-          id: pid,
-          name: ci.name || fromCatalog?.name || ci.product?.name || 'Product',
-          image: ci.image || fromCatalog?.image || ci.product?.image || '',
-          price: typeof ci.price === 'number' && ci.price > 0 ? ci.price : (fromCatalog?.price || ci.product?.price || 0),
-          quantity: ci.quantity,
-          size: ci.size,
-          color: ci.color
-        };
-      });
-      setCartItems(items);
-    } catch {
-      setCartItems(prev => prev.map(it => it.id === id ? { ...it, quantity: newQuantity } : it));
-    }
-  };
-
-  const removeFromCart = async (id) => {
-    try {
-      const token = localStorage.getItem('token');
-      const resCart = await fetch(`${API_BASE_URL}/cart`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await resCart.json();
-      const item = (data.cart?.items || []).find(ci => (ci.product?._id || ci.product) === id);
-      const itemId = item?._id;
-      if (!itemId) throw new Error('no itemId');
-      const res = await fetch(`${API_BASE_URL}/cart/remove/${itemId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('remove failed');
-      const upd = await res.json();
-      const items = (upd.cart?.items || []).map(ci => {
-        const pid = ci.product?._id || ci.product;
-        const pidNum = parseInt(pid, 10);
-        const fromCatalog = !isNaN(pidNum)
-          ? (clothingCatalog.find(p => p.id === pidNum) || giftsCatalog.find(p => p.id === pidNum))
-          : null;
-        return {
-          id: pid,
-          name: ci.name || fromCatalog?.name || ci.product?.name || 'Product',
-          image: ci.image || fromCatalog?.image || ci.product?.image || '',
-          price: typeof ci.price === 'number' && ci.price > 0 ? ci.price : (fromCatalog?.price || ci.product?.price || 0),
-          quantity: ci.quantity,
-          size: ci.size,
-          color: ci.color
-        };
-      });
-      setCartItems(items);
-    } catch {
-      setCartItems(prev => prev.filter(item => item.id !== id));
-    }
-  };
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
-  const handleCheckout = () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
+  const updateQuantity = (id, newQuantity) => {
+    if (newQuantity <= 0) {
+      setCartItems(prev => prev.filter(item => String(item.id) !== String(id)));
       return;
     }
-    setShowCart(false);
-    setShowCheckout(true);
+    setCartItems(prev => prev.map(item => String(item.id) === String(id) ? { ...item, quantity: newQuantity } : item));
   };
 
-  const handleOrderComplete = async () => {
-    // After successful order (verified), clear backend cart and local state
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`${API_BASE_URL}/cart/clear`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    } catch {}
-    setCartItems([]);
-    setShowCheckout(false);
-    alert('🎉 Order placed successfully! You can track your order in "My Orders" section.');
+  const removeFromCart = (id) => {
+    setCartItems(prev => prev.filter(item => String(item.id) !== String(id)));
   };
 
-  const handleAuthRequired = () => {
-    setAuthMode('login');
-    setShowAuthModal(true);
-  };
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleLogout = () => {
     logout();
@@ -558,394 +216,240 @@ const AppContent = () => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛍️</div>
-          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Loading SmartCart...</div>
-          <div style={{ 
-            width: '40px',
-            height: '40px',
-            border: '4px solid rgba(255,255,255,0.3)',
-            borderTop: '4px solid white',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto'
-          }} />
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-pink-500 to-purple-600 text-white">
+        <div className="text-center">
+          <div className="text-5xl mb-4">🛍️</div>
+          <div className="text-xl font-bold">Loading SmartCart Clothes & Footwear...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="App">
+    <div className="App min-h-screen bg-gray-50 flex flex-col font-sans">
       <Navbar
         cartCount={cartCount}
-        onCartClick={() => {
-          if (isAuthenticated) setShowCart(true); else { setAuthMode('login'); setShowAuthModal(true); }
-        }}
+        onCartClick={() => setShowCart(true)}
         wishlistCount={wishlist.length}
-        onWishlistClick={() => {
-          setShowCart(false);
-          setShowCheckout(false);
-          navigate('wishlist');
-        }}
+        onWishlistClick={() => navigate('wishlist')}
         user={user}
         onAuthClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
         onLogout={handleLogout}
         onNavigate={navigate}
+        currentPage={currentPage}
       />
 
-      {currentPage === 'home' && (
-        <>
-          <HeroBanner
-            isAuthenticated={isAuthenticated}
-            onCTA={() => { setAuthMode('register'); setShowAuthModal(true); }}
-          />
-          {/* Removed billboard + category strip per request */}
-          {/* Full-bleed homepage wrapper (edge-to-edge) */}
-          <div style={{ width:'100vw', position:'relative', left:'50%', marginLeft:'-50vw', padding:'4rem 2rem', display:'flex', flexDirection:'column', gap:'7rem' }}>
-            {/* Clothing Categories */}
-            <section>
-              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
-                  <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
-                    <h2 style={{ margin:0 }}>Clothing Categories</h2>
-                    <p style={{ margin:0 }}>Browse curated clothing groups</p>
-                  </div>
-                  <div style={{ flex: '0 0 auto' }}>
-                    <button onClick={() => goToClothes('All')} style={{ background:'#ff3f6c', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.55rem 1.05rem', borderRadius:999, fontSize:'.8rem', letterSpacing:'.5px', boxShadow:'0 4px 12px -4px rgba(255,63,108,0.45)' }}>View All</button>
-                  </div>
-                </div>
-              </div>
-              <div style={{ maxWidth: '100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.25rem', width:'100%', margin:'0 auto' }}>
-                {clothingCategoryCards.map(({ category, product }) => (
-                  <div key={category} className="group cursor-pointer" onClick={() => goToClothes(category)}>
-                    <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
-                      <img
-                        src={resolveImageUrl(product.image)}
-                        alt={category}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          if (product.image && e.currentTarget.src !== product.image) {
-                            e.currentTarget.src = product.image;
-                          }
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                        <span className="text-white text-sm font-semibold drop-shadow">{category}</span>
-                        <span className="sc-cat-chip">SHOP</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            {/* Gift Categories */}
-            <section>
-              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'1.5rem', flexWrap:'wrap' }}>
-                  <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
-                    <h2 style={{ margin:0 }}>Gift Categories</h2>
-                    <p style={{ margin:0 }}>Find inspiration for every occasion</p>
-                  </div>
-                  <div style={{ flex: '0 0 auto' }}>
-                    <button onClick={() => goToGifts('All')} style={{ background:'#6366f1', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.55rem 1.05rem', borderRadius:999, fontSize:'.8rem', letterSpacing:'.5px', boxShadow:'0 4px 12px -4px rgba(99,102,241,0.45)' }}>View All</button>
-                  </div>
-                </div>
-              </div>
-              <div style={{ maxWidth: '100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.25rem', width:'100%', margin:'0 auto' }}>
-                {giftCategoryCards.map(({ category, product }) => (
-                  <div key={category} className="group cursor-pointer" onClick={() => goToGifts(category)}>
-                    <div className="relative rounded-xl overflow-hidden aspect-[5/6] bg-gray-100 shadow-sm">
-                      <img
-                        src={resolveImageUrl(product.image)}
-                        alt={category}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          if (product.image && e.currentTarget.src !== product.image) {
-                            e.currentTarget.src = product.image;
-                          }
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                        <span className="text-white text-sm font-semibold drop-shadow">{category}</span>
-                        <span className="sc-cat-chip">BROWSE</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+      <main className="flex-1">
+        {currentPage === 'home' && (
+          <div>
+            <HeroBanner
+              isAuthenticated={isAuthenticated}
+              onCTA={() => navigate('clothes')}
+            />
+
+            {/* Category Grid Section (18 Fashion + 14 Footwear Categories) */}
+            <CategoryGrid onSelectCategory={handleSelectCategory} />
+
+            {/* Wishlist Quick Preview */}
             {wishlistProducts.length > 0 && (
-              <section>
-                <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
-                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:'2rem', flexWrap:'wrap' }}>
-                    <div style={{ flex:'1 1 auto', minWidth:280 }}>
-                      <h2 style={{ margin:0 }}>Your Wishlist</h2>
-                      <p style={{ margin:0 }}>Quick access to the pieces you’ve favourited</p>
-                    </div>
-                    <div style={{ color:'#64748b', fontSize:'.85rem', fontWeight:600 }}>
-                      {wishlistProducts.length} saved {wishlistProducts.length === 1 ? 'item' : 'items'}
-                    </div>
+              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900">Your Saved Wishlist</h2>
+                    <p className="text-xs text-gray-500 font-semibold mt-0.5">Quick access to items you love</p>
                   </div>
+                  <button
+                    onClick={() => navigate('wishlist')}
+                    className="text-xs font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-3 py-1.5 rounded-full"
+                  >
+                    View All ({wishlistProducts.length}) →
+                  </button>
                 </div>
-                <div style={{ maxWidth:'100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.5rem', width:'100%', margin:'0 auto' }}>
-                  {wishlistProducts.map(product => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {wishlistProducts.slice(0, 5).map(product => (
                     <ModernProductCard
                       key={`wl-${product.id || product._id}`}
                       product={product}
-                      onAdd={addToCart}
-                      isAuthenticated={isAuthenticated}
-                      onAuth={handleAuthRequired}
-                      onView={handleViewProduct}
-                      size="xl"
-                      isFavorite
-                      onToggleFavorite={toggleWishlist}
+                      onAddToCart={addToCart}
+                      onViewProduct={handleViewProduct}
+                      isWishlisted
+                      onToggleWishlist={toggleWishlist}
                     />
                   ))}
                 </div>
               </section>
             )}
-            {/* Suggested For You */}
-            <section>
-              <div className="sc-collection-heading" style={{ maxWidth:1400, margin:'0 auto 2.1rem' }}>
-                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:'2rem', flexWrap:'wrap' }}>
-                  <div style={{ flex:'1 1 auto', minWidth:300, display:'flex', flexDirection:'column', gap:'.45rem' }}>
-                    <h2 style={{ margin:0 }}>Suggested For You</h2>
-                    <p style={{ margin:0, color:'#64748b' }}>Blended from your cart, wishlist, and browsing activity</p>
+
+            {/* "Suggested For You" Section (ML Powered Engine) */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 border-b border-gray-100 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
+                        ⚡ ML Recommendation Engine
+                      </span>
+                      {userExperience.clickedProducts.length > 0 && (
+                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                          Personalized based on your activity
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
+                      Suggested For You
+                    </h2>
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
-                    <button onClick={() => { setSuggestedSeed(Date.now()); }} style={{ background:'#ff3f6c', border:'none', color:'#fff', cursor:'pointer', fontWeight:600, padding:'.65rem 1.15rem', borderRadius:999, fontSize:'.85rem', letterSpacing:'.5px', boxShadow:'0 4px 14px -4px rgba(255,63,108,0.45)' }}>↻ Refresh</button>
-                  </div>
+                  <p className="text-xs text-gray-500 font-medium mt-2 sm:mt-0 max-w-sm">
+                    {userExperience.clickedProducts.length > 0 
+                      ? 'Dynamically ranked based on your clicked & purchased categories, colors and price points.'
+                      : 'Initial top-rated collection (50% Clothes + 50% Footwear). Click or buy items to personalize your feed!'}
+                  </p>
                 </div>
-              </div>
-              {previewSuggestions.length === 0 ? (
-                <div style={{
-                  width:'100%',
-                  padding:'3rem',
-                  borderRadius:32,
-                  border:'1px dashed rgba(148,163,184,0.45)',
-                  textAlign:'center',
-                  color:'#6b7280'
-                }}>
-                  Add items to your cart or wishlist to unlock tailored suggestions.
-                </div>
-              ) : (
-                <div style={{ maxWidth:'100%', display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1.5rem', width:'100%', margin:'0 auto' }}>
-                  {previewSuggestions.map(product => (
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                  {suggestedProducts.map((product) => (
                     <ModernProductCard
-                      key={`s-${product.id || product._id}`}
+                      key={`sug-${product.id || product._id}`}
                       product={product}
-                      onAdd={addToCart}
-                      isAuthenticated={isAuthenticated}
-                      onAuth={handleAuthRequired}
-                      onView={handleViewProduct}
-                      size="xl"
-                      isFavorite={wishlistSet.has(String(product._id || product.id))}
-                      onToggleFavorite={toggleWishlist}
+                      onAddToCart={addToCart}
+                      onViewProduct={handleViewProduct}
+                      isWishlisted={wishlistSet.has(String(product.id || product._id))}
+                      onToggleWishlist={toggleWishlist}
                     />
                   ))}
                 </div>
-              )}
+              </div>
             </section>
           </div>
-        </>
-      )}
+        )}
 
-      {/* Clothes Page Render with category pre-select */}
-      {currentPage === 'clothes' && (
-        <ClothesPage
-          onAddToCart={addToCart}
-          isAuthenticated={isAuthenticated}
-          onAuthRequired={handleAuthRequired}
-          onViewProduct={handleViewProduct}
-          initialCategory={activeClothingCategory}
-          wishlistIds={wishlist}
-          onToggleWishlist={toggleWishlist}
-        />
-      )}
+        {currentPage === 'clothes' && (
+          <ClothesPage
+            initialCategory={activeClothingCategory}
+            onAddToCart={addToCart}
+            onViewProduct={handleViewProduct}
+            wishlistIds={wishlist}
+            onToggleWishlist={toggleWishlist}
+          />
+        )}
 
-      {/* Gifts Page Render with category pre-select */}
-      {currentPage === 'gifts' && (
-        <GiftsPage
-          onAddToCart={addToCart}
-          isAuthenticated={isAuthenticated}
-          onAuthRequired={handleAuthRequired}
-          onViewProduct={handleViewProduct}
-          initialCategory={activeGiftCategory}
-          wishlistIds={wishlist}
-          onToggleWishlist={toggleWishlist}
-        />
-      )}
+        {currentPage === 'footwear' && (
+          <FootwearPage
+            initialCategory={activeFootwearCategory}
+            onAddToCart={addToCart}
+            onViewProduct={handleViewProduct}
+            wishlistIds={wishlist}
+            onToggleWishlist={toggleWishlist}
+          />
+        )}
 
-      {currentPage === 'wishlist' && (
-        <WishlistPage
-          products={wishlistProducts}
-          onAddToCart={addToCart}
-          isAuthenticated={isAuthenticated}
-          onAuthRequired={handleAuthRequired}
-          onViewProduct={handleViewProduct}
-          onToggleWishlist={toggleWishlist}
-          onBrowseClothes={() => navigate('clothes')}
-          onBrowseGifts={() => navigate('gifts')}
-          onBackHome={() => navigate('home')}
-        />
-      )}
+        {currentPage === 'wishlist' && (
+          <WishlistPage
+            wishlistItems={wishlistProducts}
+            onRemoveWishlist={toggleWishlist}
+            onAddToCart={addToCart}
+            onViewProduct={handleViewProduct}
+          />
+        )}
 
-      {currentPage === 'product' && selectedProduct && (
-        <React.Suspense fallback={<div style={{ padding: '2rem' }}>Loading product...</div>}>
-          {/* Lazy import to avoid initial bundle bloat */}
-          {React.createElement(require('./components/ProductDetail').default, {
-            product: selectedProduct,
-            onClose: () => {
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                window.history.back();
-              } else {
-                setSelectedProduct(null);
-                navigate('home', { replace: true });
-              }
-            },
-            onAddToCart: addToCart,
-            onBuyNow: buyNow,
-            isAuthenticated,
-            onAuthRequired: handleAuthRequired
-          })}
-        </React.Suspense>
-      )}
+        {currentPage === 'my-orders' && (
+          <OrderHistory onNavigate={navigate} />
+        )}
+      </main>
 
-      {/* My Orders Page (full-page variant) */}
-      {currentPage === 'my-orders' && (
-        isAuthenticated ? (
-          <div style={{ width:'100%', padding:'2.5rem 1rem', display:'flex', justifyContent:'center' }}>
-            <div style={{ width:'100%', maxWidth:1200 }}>
-              <OrderHistory
-                user={user}
-                variant="page"
-                onClose={() => navigate('home')}
-              />
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding:'5rem 1.5rem', maxWidth:900, margin:'0 auto', textAlign:'center' }}>
-            <div style={{ fontSize:'4rem', marginBottom:'1rem' }}>🔐</div>
-            <h2 style={{ margin:'0 0 1rem', fontSize:'2rem', fontWeight:800, letterSpacing:'-.5px' }}>Sign In to View Your Orders</h2>
-            <p style={{ color:'#64748b', margin:'0 0 2.25rem', fontSize:'1.05rem', lineHeight:1.5 }}>Access your full purchase history, track delivery status, and manage recent orders.</p>
-            <button
-              onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-              style={{
-                background:'linear-gradient(135deg,#ff3f6c,#6366f1)',
-                border:'none',
-                color:'#fff',
-                padding:'0.9rem 2.1rem',
-                fontSize:'1rem',
-                fontWeight:600,
-                borderRadius:14,
-                cursor:'pointer',
-                boxShadow:'0 8px 24px -10px rgba(99,102,241,0.45)',
-                letterSpacing:'.25px'
-              }}
-            >Sign In to Continue →</button>
-          </div>
-        )
-      )}
-
-  {/* Profile page removed */}
-
-      {/* Cart Modal */}
-      {showCart && isAuthenticated && Cart && (
-        <Cart 
-          cartItems={cartItems}
+      {/* Cart Drawer */}
+      {showCart && (
+        <Cart
+          items={cartItems}
+          onClose={() => setShowCart(false)}
           onUpdateQuantity={updateQuantity}
           onRemoveItem={removeFromCart}
-          onCheckout={handleCheckout}
-          onClose={() => setShowCart(false)}
-        />
-      )}
-
-      {/* Auth Modal */}
-      {showAuthModal && AuthModal && (
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onAuthSuccess={() => navigate('home')}
-          mode={authMode}
-          onSwitchMode={setAuthMode}
+          onCheckout={() => { setShowCart(false); setShowCheckout(true); }}
         />
       )}
 
       {/* Checkout Modal */}
-      {showCheckout && isAuthenticated && Checkout && (
+      {showCheckout && (
         <Checkout
-          cartItems={cartItems}
-          user={user}
+          items={cartItems}
           onClose={() => setShowCheckout(false)}
-          onOrderComplete={handleOrderComplete}
+          onComplete={() => {
+            setCartItems([]);
+            setShowCheckout(false);
+            alert('🎉 Order placed successfully!');
+            navigate('my-orders');
+          }}
         />
       )}
 
-  {/* Order History Modal (shown even if not authenticated) */}
-  {showOrderHistory && OrderHistory && (
-        <OrderHistory
-          user={user}
-          onClose={() => setShowOrderHistory(false)}
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetail
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onAddToCart={addToCart}
+          onBuyNow={buyNow}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setShowAuthModal(false)}
+          onSwitchMode={(mode) => setAuthMode(mode)}
         />
       )}
 
       {/* Footer */}
-      <footer style={{ 
-        backgroundColor: '#374151', 
-        color: 'white', 
-        textAlign: 'center', 
-        padding: '3rem 2rem',
-        marginTop: '4rem'
-      }}>
-        <h3 style={{ marginBottom: '1rem' }}>SmartCart: Clothes & Gifts</h3>
-        <p style={{ marginBottom: '1rem' }}>Your AI-Powered Shopping Destination</p>
-        <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-          © 2025 SmartCart. Built with MERN Stack + Machine Learning
-        </p>
+      <footer className="bg-gray-900 text-white mt-16 py-12 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-lg font-black text-pink-500">SMARTCART</h3>
+            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+              Your premier destination for Clothes & Footwear. 18 fashion apparel categories and 14 footwear categories with ML personalized recommendations.
+            </p>
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300 mb-3">Shop Clothes</h4>
+            <ul className="text-xs text-gray-400 space-y-1.5">
+              <li><button onClick={() => handleSelectCategory('clothes', 'Sarees')}>Sarees & Lehengas</button></li>
+              <li><button onClick={() => handleSelectCategory('clothes', 'Jeans')}>Jeans & Trousers</button></li>
+              <li><button onClick={() => handleSelectCategory('clothes', 'T-Shirts')}>T-Shirts & Tops</button></li>
+              <li><button onClick={() => handleSelectCategory('clothes', 'Jackets & Coats')}>Jackets & Sweaters</button></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300 mb-3">Shop Footwear</h4>
+            <ul className="text-xs text-gray-400 space-y-1.5">
+              <li><button onClick={() => handleSelectCategory('footwear', 'Sneakers')}>Sneakers & Athletic</button></li>
+              <li><button onClick={() => handleSelectCategory('footwear', 'Sandals')}>Sandals & Slides</button></li>
+              <li><button onClick={() => handleSelectCategory('footwear', 'Loafers')}>Loafers & Boots</button></li>
+              <li><button onClick={() => handleSelectCategory('footwear', 'Heels')}>Heels & Flats</button></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300 mb-3">Customer Service</h4>
+            <ul className="text-xs text-gray-400 space-y-1.5">
+              <li>10-Day Replacement Policy</li>
+              <li>Cash on Delivery Available</li>
+              <li>Track Orders Online</li>
+              <li>100% Authentic Guarantee</li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pt-6 border-t border-gray-800 text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} SmartCart Clothes & Footwear Inc. All rights reserved.
+        </div>
       </footer>
-
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
     </div>
   );
 };
 
-function App() {
-  // Runtime guard: if any critical component is undefined, render a helpful message
-  const undefineds = [];
-  if (!AuthProvider) undefineds.push('AuthProvider');
-  if (!AppContent) undefineds.push('AppContent');
-  if (undefineds.length) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h3>Component load error</h3>
-        <pre>{JSON.stringify(undefineds, null, 2)}</pre>
-      </div>
-    );
-  }
-
+export default function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
 }
-
-export default App;
