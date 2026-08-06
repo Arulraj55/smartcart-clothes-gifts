@@ -163,6 +163,11 @@ const AppContent = () => {
   }, [userExperience]);
 
   const addToCart = async (product) => {
+    if (!isAuthenticated) {
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return false;
+    }
     recordUserInteraction(product, 'buy');
     setCartItems(prev => {
       const pid = String(product.id || product._id);
@@ -184,12 +189,22 @@ const AppContent = () => {
   };
 
   const buyNow = async (product) => {
+    if (!isAuthenticated) {
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return false;
+    }
     await addToCart(product);
     setShowCheckout(true);
     return true;
   };
 
   const toggleWishlist = useCallback((product) => {
+    if (!isAuthenticated) {
+      setAuthMode('login');
+      setShowAuthModal(true);
+      return;
+    }
     if (!product) return;
     const pid = String(product.id || product._id);
     setWishlist(prev => {
@@ -199,7 +214,7 @@ const AppContent = () => {
       } catch {}
       return next;
     });
-  }, []);
+  }, [isAuthenticated]);
 
   const updateQuantity = (id, newQuantity) => {
     if (newQuantity <= 0) {
@@ -236,9 +251,15 @@ const AppContent = () => {
     <div className="App min-h-screen bg-gray-50 flex flex-col font-sans">
       <Navbar
         cartCount={cartCount}
-        onCartClick={() => setShowCart(true)}
+        onCartClick={() => {
+          if (!isAuthenticated) { setAuthMode('login'); setShowAuthModal(true); return; }
+          setShowCart(true);
+        }}
         wishlistCount={wishlist.length}
-        onWishlistClick={() => navigate('wishlist')}
+        onWishlistClick={() => {
+          if (!isAuthenticated) { setAuthMode('login'); setShowAuthModal(true); return; }
+          navigate('wishlist');
+        }}
         user={user}
         onAuthClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
         onLogout={handleLogout}
@@ -447,9 +468,11 @@ const AppContent = () => {
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
+          isOpen={showAuthModal}
           mode={authMode}
           onClose={() => setShowAuthModal(false)}
           onSwitchMode={(mode) => setAuthMode(mode)}
+          onAuthSuccess={() => setShowAuthModal(false)}
         />
       )}
 
