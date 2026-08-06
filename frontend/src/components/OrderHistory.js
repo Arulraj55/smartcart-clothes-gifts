@@ -134,10 +134,20 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
   };
 
   if (loading) {
+    if (variant === 'page') {
+      return (
+        <Wrapper>
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
+            <h3 style={{ color: '#374151', fontSize: '1.4rem', fontWeight: 700 }}>Loading your orders...</h3>
+          </div>
+        </Wrapper>
+      );
+    }
     return (
       <Wrapper>
         <div className="order-history-header">
-          <h2>{variant === 'page' ? '📦 My Orders' : '📦 Order History'}</h2>
+          <h2>📦 Order History</h2>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
         <div style={{ textAlign: 'center', padding: '3rem' }}>
@@ -149,10 +159,29 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
   }
 
   if (orders.length === 0) {
+    if (variant === 'page') {
+      return (
+        <Wrapper>
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛒</div>
+            <h3 style={{ color: '#374151', marginBottom: '0.5rem', fontSize: '1.6rem', fontWeight: 700 }}>No Orders Yet</h3>
+            <p style={{ color: '#6b7280', marginBottom: '2rem', fontSize: '1rem' }}>
+              You haven't made any purchases yet. Start shopping to see your orders here!
+            </p>
+            <button
+              style={{ padding: '0.85rem 2.5rem', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg,#ec4899,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}
+              onClick={onClose}
+            >
+              Start Shopping →
+            </button>
+          </div>
+        </Wrapper>
+      );
+    }
     return (
       <Wrapper>
         <div className="order-history-header">
-          <h2>{variant === 'page' ? '📦 My Orders' : '📦 Order History'}</h2>
+          <h2>📦 Order History</h2>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
         <div className="order-history-content">
@@ -162,7 +191,7 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
             <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
               You haven't made any purchases yet. Start shopping to see your orders here!
             </p>
-            <button 
+            <button
               className="smartcart-button"
               onClick={onClose}
               style={{ padding: '0.75rem 2rem' }}
