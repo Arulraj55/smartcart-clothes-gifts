@@ -105,6 +105,19 @@ def generate_footwear_highlights(row, category):
         f"Sold by: {seller}"
     ]
 
+import html
+
+def strip_html_tags(text):
+    if not text:
+        return ""
+    text = html.unescape(str(text))
+    text = re.sub(r'<br\s*/?>', ' ', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', ' ', text, flags=re.IGNORECASE)
+    text = re.sub(r'</li>', ' ', text, flags=re.IGNORECASE)
+    clean = re.sub(r'<[^>]+>', ' ', text)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    return clean
+
 def clean_val(val, default=""):
     if pd.isna(val) or val is None:
         return default
@@ -176,7 +189,7 @@ def parse_fashion_excel():
                 discount_pct = "40%"
         
         color = clean_val(row.get("color"), "Multicolor")
-        desc = clean_val(row.get("description"), f"{name} - Premium quality fashion clothing from {seller}.")
+        desc = strip_html_tags(clean_val(row.get("description"), f"{name} - Premium quality fashion clothing from {seller}."))
         
         pid = 10000 + idx + 1
         
@@ -249,7 +262,7 @@ def parse_footwear_excel():
                 discount_pct = "45%"
         
         color = clean_val(row.get("color"), "Black")
-        desc = clean_val(row.get("description"), f"{name} - High performance, comfortable footwear by {seller}.")
+        desc = strip_html_tags(clean_val(row.get("description"), f"{name} - High performance, comfortable footwear by {seller}."))
         
         pid = 20000 + idx + 1
         

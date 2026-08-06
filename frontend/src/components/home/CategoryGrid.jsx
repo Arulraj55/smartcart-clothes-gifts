@@ -42,7 +42,6 @@ const FOOTWEAR_CATEGORIES = [
 ];
 
 export default function CategoryGrid({ onSelectCategory }) {
-  // Helper to resolve a representative image for category
   const getFashionImage = (cat) => {
     if (categoryImagesData?.clothes?.[cat]) return categoryImagesData.clothes[cat];
     const match = clothingCatalog.find(p => p.category === cat && p.image);
@@ -58,32 +57,33 @@ export default function CategoryGrid({ onSelectCategory }) {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
       
-      {/* Fashion Categories Section */}
+      {/* Fashion Categories Section (Strictly 4 per row) */}
       <div>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 border-b border-gray-200 pb-4">
           <div>
             <span className="text-pink-600 font-bold text-xs uppercase tracking-widest bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
-              Fashion Collection
+              Fashion Apparel
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-2">
               Explore All 18 Clothes Categories
             </h2>
           </div>
           <p className="text-sm text-gray-500 mt-2 md:mt-0 font-medium">
-            Curated outfits, ethnic wear, tops, denim & tailored apparel
+            Sarees, kurtas, denim, dresses, tops & ethnic sets
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {/* Grid strictly 4 columns per row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
           {FASHION_CATEGORIES.map((category) => {
             const imgSrc = getFashionImage(category);
             return (
               <div
                 key={category}
                 onClick={() => onSelectCategory && onSelectCategory('clothes', category)}
-                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gray-100 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gray-100 border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-64"
               >
-                <div className="aspect-square w-full overflow-hidden bg-gray-200 relative">
+                <div className="w-full h-full overflow-hidden bg-gray-200 relative">
                   <img
                     src={imgSrc}
                     alt={category}
@@ -94,17 +94,17 @@ export default function CategoryGrid({ onSelectCategory }) {
                       e.target.src = 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80';
                     }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                  <div className="absolute top-2 right-2 bg-pink-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
+                  <div className="absolute top-3 right-3 bg-pink-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-md">
                     Fashion
                   </div>
                 </div>
-                <div className="absolute bottom-0 inset-x-0 p-3 text-center">
-                  <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide group-hover:text-pink-300 transition-colors drop-shadow-md">
+                <div className="absolute bottom-0 inset-x-0 p-4 text-center">
+                  <h3 className="text-sm sm:text-base font-extrabold text-white tracking-wide group-hover:text-pink-300 transition-colors drop-shadow-md">
                     {category}
                   </h3>
-                  <span className="inline-block mt-1 text-[10px] text-pink-200 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                    Shop Now →
+                  <span className="inline-block mt-1 text-xs text-pink-200 font-bold opacity-90 group-hover:opacity-100 transition-opacity">
+                    Shop Category →
                   </span>
                 </div>
               </div>
@@ -113,7 +113,7 @@ export default function CategoryGrid({ onSelectCategory }) {
         </div>
       </div>
 
-      {/* Footwear Categories Section */}
+      {/* Footwear Categories Section (Strictly 4 per row) */}
       <div>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 border-b border-gray-200 pb-4">
           <div>
@@ -129,16 +129,17 @@ export default function CategoryGrid({ onSelectCategory }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        {/* Grid strictly 4 columns per row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
           {FOOTWEAR_CATEGORIES.map((category) => {
             const imgSrc = getFootwearImage(category);
             return (
               <div
                 key={category}
                 onClick={() => onSelectCategory && onSelectCategory('footwear', category)}
-                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gray-100 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gray-100 border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-64"
               >
-                <div className="aspect-square w-full overflow-hidden bg-gray-200 relative">
+                <div className="w-full h-full overflow-hidden bg-gray-200 relative">
                   <img
                     src={imgSrc}
                     alt={category}
@@ -149,17 +150,17 @@ export default function CategoryGrid({ onSelectCategory }) {
                       e.target.src = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=600&q=80';
                     }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                  <div className="absolute top-2 right-2 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
+                  <div className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-md">
                     Shoes
                   </div>
                 </div>
-                <div className="absolute bottom-0 inset-x-0 p-3 text-center">
-                  <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide group-hover:text-blue-300 transition-colors drop-shadow-md">
+                <div className="absolute bottom-0 inset-x-0 p-4 text-center">
+                  <h3 className="text-sm sm:text-base font-extrabold text-white tracking-wide group-hover:text-blue-300 transition-colors drop-shadow-md">
                     {category}
                   </h3>
-                  <span className="inline-block mt-1 text-[10px] text-blue-200 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                    Explore →
+                  <span className="inline-block mt-1 text-xs text-blue-200 font-bold opacity-90 group-hover:opacity-100 transition-opacity">
+                    Shop Category →
                   </span>
                 </div>
               </div>

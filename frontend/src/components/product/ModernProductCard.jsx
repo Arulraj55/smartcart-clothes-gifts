@@ -8,8 +8,6 @@ export default function ModernProductCard({
   onAddToCart,
   onView,
   onViewProduct,
-  isAuthenticated,
-  onAuth,
   size = 'md',
   isFavorite = false,
   isWishlisted = false,
@@ -54,37 +52,38 @@ export default function ModernProductCard({
 
   return (
     <div 
-      className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer"
+      className="group relative bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer w-full"
       onClick={handleCardClick}
     >
       {/* Top Badges */}
-      <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
         {isSpecial ? (
-          <span className="bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-sm">
+          <span className="bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md">
             Special Price
           </span>
         ) : <span />}
 
         {discountPct && (
-          <span className="bg-pink-600 text-white text-[10px] font-black tracking-wider px-2 py-0.5 rounded-md shadow-sm ml-auto">
+          <span className="bg-pink-600 text-white text-[10px] font-black tracking-wider px-2 py-0.5 rounded-md shadow-md ml-auto">
             {discountPct} OFF
           </span>
         )}
       </div>
 
-      {/* Product Image */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-50">
+      {/* Product Image & Heart / Favorites Button */}
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
         <button
           type="button"
           onClick={handleWishlistClick}
-          className={`absolute top-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+          className={`absolute top-2.5 right-2.5 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 ${
             favorited 
-              ? 'bg-pink-600 text-white shadow-md scale-105' 
-              : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-pink-600 hover:bg-white'
+              ? 'bg-pink-600 text-white shadow-lg scale-110' 
+              : 'bg-white/90 backdrop-blur-md text-gray-400 hover:text-pink-600 hover:bg-white shadow-sm'
           }`}
-          aria-label="Wishlist"
+          title={favorited ? 'Remove from Wishlist' : 'Add to Wishlist / Favorites'}
+          aria-label="Wishlist Favorite"
         >
-          {favorited ? '♥' : '♡'}
+          <span className="text-base font-bold leading-none">{favorited ? '♥' : '♡'}</span>
         </button>
 
         <img
@@ -100,12 +99,12 @@ export default function ModernProductCard({
         />
       </div>
 
-      {/* Product Information */}
-      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+      {/* Product Details */}
+      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2.5">
         <div>
           {/* Seller / Brand & Category */}
           <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 mb-1">
-            <span className="truncate max-w-[120px] text-pink-600 font-semibold">{product.seller || 'SmartCart'}</span>
+            <span className="truncate max-w-[110px] text-pink-600 font-bold">{product.seller || 'SmartCart'}</span>
             <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">
               {product.category || 'Apparel'}
             </span>
@@ -118,16 +117,16 @@ export default function ModernProductCard({
         </div>
 
         <div>
-          {/* Rating */}
-          <div className="flex items-center gap-1 my-1">
-            <div className="flex items-center gap-0.5 bg-green-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+          {/* Rating & Color Tag */}
+          <div className="flex items-center justify-between my-1.5">
+            <div className="flex items-center gap-1 bg-green-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
               <span>{ratingVal}</span>
               <span>★</span>
+              <span className="text-white/80 font-normal ml-0.5">({ratingCount})</span>
             </div>
-            <span className="text-[11px] text-gray-400 font-medium">({ratingCount})</span>
             {product.color && (
-              <span className="ml-auto text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[70px]">
-                {product.color}
+              <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate max-w-[90px]">
+                🎨 {product.color}
               </span>
             )}
           </div>

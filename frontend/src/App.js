@@ -100,12 +100,12 @@ const AppContent = () => {
   const recordUserInteraction = useCallback((product, actionType = 'click') => {
     if (!product) return;
     setUserExperience((prev) => {
-      const clickedProducts = [product, ...prev.clickedProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 30);
+      const clickedProducts = [product, ...prev.clickedProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 40);
       const boughtProducts = actionType === 'buy' 
-        ? [product, ...prev.boughtProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 30)
+        ? [product, ...prev.boughtProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 40)
         : prev.boughtProducts;
 
-      const categoryWeight = actionType === 'buy' ? 3 : 1;
+      const categoryWeight = actionType === 'buy' ? 4 : 1;
       const colorWeight = actionType === 'buy' ? 3 : 1;
 
       const cat = product.category || 'Apparel';
@@ -149,6 +149,13 @@ const AppContent = () => {
     const all = [...clothingCatalog, ...footwearCatalog];
     return all.filter(p => wishlistSet.has(String(p.id || p._id)));
   }, [wishlistSet]);
+
+  // Trending Now Collection (Top Rated 4 Clothes + 4 Footwear)
+  const trendingNowProducts = useMemo(() => {
+    const topClothes = [...clothingCatalog].sort((a,b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4);
+    const topFootwear = [...footwearCatalog].sort((a,b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4);
+    return [...topClothes, ...topFootwear];
+  }, []);
 
   // ML Personalised Suggestions ("Suggested For You")
   const suggestedProducts = useMemo(() => {
@@ -247,26 +254,61 @@ const AppContent = () => {
               onCTA={() => navigate('clothes')}
             />
 
-            {/* Category Grid Section (18 Fashion + 14 Footwear Categories) */}
+            {/* 🔥 Trending Now Section (Strictly 4 per row) */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+              <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-3">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-widest text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                    🔥 HOT PRODUCTS
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">
+                    Trending Now
+                  </h2>
+                </div>
+                <button
+                  onClick={() => navigate('clothes')}
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-4 py-2 rounded-full border border-pink-100 shadow-sm"
+                >
+                  Explore All →
+                </button>
+              </div>
+
+              {/* Grid 4 columns per row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                {trendingNowProducts.map((product) => (
+                  <ModernProductCard
+                    key={`tr-${product.id || product._id}`}
+                    product={product}
+                    onAddToCart={addToCart}
+                    onViewProduct={handleViewProduct}
+                    isWishlisted={wishlistSet.has(String(product.id || product._id))}
+                    onToggleWishlist={toggleWishlist}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Category Grid Section (18 Fashion + 14 Footwear Categories, strictly 4 per row) */}
             <CategoryGrid onSelectCategory={handleSelectCategory} />
 
-            {/* Wishlist Quick Preview */}
+            {/* Wishlist Quick Preview (4 per row) */}
             {wishlistProducts.length > 0 && (
               <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-black text-gray-900">Your Saved Wishlist</h2>
+                    <h2 className="text-2xl font-black text-gray-900">Your Saved Wishlist Favorites (♥)</h2>
                     <p className="text-xs text-gray-500 font-semibold mt-0.5">Quick access to items you love</p>
                   </div>
                   <button
                     onClick={() => navigate('wishlist')}
-                    className="text-xs font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-3 py-1.5 rounded-full"
+                    className="text-xs font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-4 py-2 rounded-full"
                   >
-                    View All ({wishlistProducts.length}) →
+                    View Favorites Page ({wishlistProducts.length}) →
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {wishlistProducts.slice(0, 5).map(product => (
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                  {wishlistProducts.slice(0, 4).map(product => (
                     <ModernProductCard
                       key={`wl-${product.id || product._id}`}
                       product={product}
@@ -280,18 +322,18 @@ const AppContent = () => {
               </section>
             )}
 
-            {/* "Suggested For You" Section (ML Powered Engine) */}
+            {/* "Suggested For You" Section (ML Powered Engine, strictly 4 per row) */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-200">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 border-b border-gray-100 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
-                        ⚡ ML Recommendation Engine
+                        ⚡ Enhanced ML Recommendation Engine
                       </span>
                       {userExperience.clickedProducts.length > 0 && (
                         <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                          Personalized based on your activity
+                          Personalized based on your browsing & purchases
                         </span>
                       )}
                     </div>
@@ -306,7 +348,8 @@ const AppContent = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                {/* Grid strictly 4 columns per row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6">
                   {suggestedProducts.map((product) => (
                     <ModernProductCard
                       key={`sug-${product.id || product._id}`}
@@ -382,13 +425,15 @@ const AppContent = () => {
         />
       )}
 
-      {/* Product Detail Modal */}
+      {/* Product Detail POP-UP Modal */}
       {selectedProduct && (
         <ProductDetail
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
           onAddToCart={addToCart}
           onBuyNow={buyNow}
+          isWishlisted={wishlistSet.has(String(selectedProduct.id || selectedProduct._id))}
+          onToggleWishlist={toggleWishlist}
         />
       )}
 

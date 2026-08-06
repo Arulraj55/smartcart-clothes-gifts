@@ -52,16 +52,32 @@ const OrderHistory = ({ user, onClose, variant = 'modal' }) => {
               },
               paymentMethod: o.paymentMethod
             }));
-            setOrders(backendOrders);
+            if (backendOrders.length > 0) {
+              setOrders(backendOrders);
+              return;
+            }
+          }
+        }
+        
+        // Fallback to local storage orders
+        try {
+          const savedLocal = JSON.parse(localStorage.getItem('smartcart:orders') || '[]');
+          if (Array.isArray(savedLocal) && savedLocal.length > 0) {
+            setOrders(savedLocal);
           } else {
             setOrders([]);
           }
+        } catch {
+          setOrders([]);
         }
-        // If no user or token, show empty
-        if (!user || !token) setOrders([]);
       } catch (error) {
         console.error('Error fetching orders:', error);
-        setOrders([]);
+        try {
+          const savedLocal = JSON.parse(localStorage.getItem('smartcart:orders') || '[]');
+          setOrders(Array.isArray(savedLocal) ? savedLocal : []);
+        } catch {
+          setOrders([]);
+        }
       } finally {
         setLoading(false);
       }
