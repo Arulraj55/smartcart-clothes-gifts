@@ -7,10 +7,10 @@ export default function HeroBanner({ isAuthenticated, onCTA }) {
     <PageHero
       sectionClassName="sc-hero-gradient"
       variant="default"
-      title={isAuthenticated ? 'Style & Gifting Unified' : 'Shop Clothes & Gifts In One Place'}
-      description="Discover curated fashion and thoughtful gifts with a sleek experience inspired by top marketplaces."
+      title={isAuthenticated ? 'Style & Gifting Unified' : 'Shop Clothes & Footwear In One Place'}
+      description="Discover curated fashion and thoughtful footwear with a sleek experience inspired by top marketplaces."
       spotlightTitle="Summer Essentials"
-      spotlightSubtitle="Breezy co-ords, sun-ready layers, and thoughtful gifts curated for warm days ahead."
+      spotlightSubtitle="Breezy co-ords, sun-ready layers, and thoughtful footwear curated for warm days ahead."
       tags={['Linen Layers', 'Sun-Safe Fits', 'Gift-Ready Sets']}
       cta={!isAuthenticated && (
         <button onClick={onCTA} className="sc-btn-primary text-sm md:text-base shadow-md shadow-pink-200">
