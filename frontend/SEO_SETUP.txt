@@ -1,0 +1,15 @@
+SEO changes included:
+- Homepage title/description optimized for SmartCart Clothes & Footwear.
+- React Helmet metadata for home, clothes, and footwear pages.
+- robots.txt with sitemap URL.
+- sitemap.xml for /, /clothes, and /footwear.
+- Canonical URLs and Open Graph metadata.
+- WebSite structured data for SmartCart.
+- Homepage hero text now explicitly says SmartCart Clothes & Footwear.
+
+After deploying:
+1. Open the site and verify /robots.txt and /sitemap.xml load.
+2. Add https://smartcart-clothes-gifts-frontend.onrender.com/ to Google Search Console as a URL-prefix property.
+3. Submit https://smartcart-clothes-gifts-frontend.onrender.com/sitemap.xml.
+4. Use URL Inspection for the homepage and request indexing once.
+5. Wait for Google to crawl the site; indexing/ranking is not immediate or guaranteed.

@@ -19,6 +19,7 @@ import HeroBanner from './components/home/HeroBanner';
 import CategoryGrid from './components/home/CategoryGrid';
 import ModernProductCard from './components/product/ModernProductCard';
 import { getPersonalizedMLSuggestions } from './utils/mlRecommendationEngine';
+import SEO from './components/SEO';
 
 const PAGE_PATHS = {
   home: '/',
@@ -249,6 +250,7 @@ const AppContent = () => {
 
   return (
     <div className="App min-h-screen bg-gray-50 flex flex-col font-sans">
+      <SEO page={currentPage} />
       <Navbar
         cartCount={cartCount}
         onCartClick={() => {
