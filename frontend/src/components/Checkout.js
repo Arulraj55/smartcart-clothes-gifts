@@ -1,5 +1,23 @@
 import React, { useState } from 'react';
 import './Checkout.css';
+import { trackBehavior } from '../utils/mlRecommendationEngine';
+
+// ---------------------------------------------------------------------------
+// Fire purchase behavior for every item in the cart after order succeeds.
+// Silent — never throws. Called once per successful order, not per add-to-cart.
+// ---------------------------------------------------------------------------
+function trackPurchasedItems(cartItems) {
+  for (const item of cartItems) {
+    const pid = String(item.id || item._id || '');
+    if (!pid) continue;
+    trackBehavior('purchase', pid, {
+      category: item.category || undefined,
+      color: item.color || undefined,
+      price: item.price,
+      quantity: item.quantity || 1
+    });
+  }
+}
 
 const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
@@ -217,6 +235,8 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
                 })
               });
               if (!verifyRes.ok) throw new Error('Payment verification failed');
+              // Track purchase for every cart item — real payment confirmed
+              trackPurchasedItems(cartItems);
               // Clear backend cart after successful payment
               try {
                 await fetch(`${API_BASE_URL}/cart/clear`, {
@@ -298,6 +318,9 @@ const Checkout = ({ cartItems, onClose, onOrderComplete, user }) => {
           headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
         });
       } catch {}
+
+      // Track purchase for every cart item — order successfully placed
+      trackPurchasedItems(cartItems);
 
       setOrderConfirmed(true);
       setTimeout(() => {

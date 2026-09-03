@@ -92,26 +92,61 @@ function textRelevance(product, tokens) {
 }
 
 // ---------------------------------------------------------------------------
-// Build a user preference profile from recent behaviors (same logic as recs)
+// Build a user preference profile from recent behaviors.
+//
+// New format (current): metadata.catalogProductId + metadata.category + metadata.color
+// Legacy format (old):  b.product (ObjectId string) → productMap lookup
+//
+// Both are supported so existing behavior documents still contribute.
 // ---------------------------------------------------------------------------
-const ACTION_WEIGHT = { purchase: 5, add_to_cart: 3, add_to_wishlist: 2,
-  search_click: 2, quick_view: 1.5, view: 1 };
+const ACTION_WEIGHT = {
+  purchase: 5, add_to_cart: 3, add_to_wishlist: 2,
+  search_click: 2, quick_view: 1.5, view: 1, category_browse: 0.5
+};
 
 function buildSearchProfile(behaviors) {
   const categories = {};
   const colors = {};
+
+  // Product map for legacy ObjectId fallback
   const productMap = {};
   for (const p of ALL_PRODUCTS) productMap[String(p.id || p._id)] = p;
 
   for (const b of behaviors) {
     const weight = ACTION_WEIGHT[b.action] || 1;
-    const pid = b.product ? String(b.product) : null;
-    const p = pid ? productMap[pid] : null;
-    if (p) {
-      if (p.category) categories[p.category] = (categories[p.category] || 0) + weight;
-      if (p.color)    colors[p.color]         = (colors[p.color] || 0) + weight;
+
+    // --- Resolve category and color ---
+    // 1) Prefer metadata fields (new format — always accurate)
+    let category = b.metadata && b.metadata.category ? b.metadata.category : null;
+    let color    = b.metadata && b.metadata.color    ? b.metadata.color    : null;
+
+    // 2) If metadata fields missing, try catalogProductId lookup
+    if ((!category || !color) && b.metadata && b.metadata.catalogProductId) {
+      const p = productMap[String(b.metadata.catalogProductId)];
+      if (p) {
+        category = category || p.category || null;
+        color    = color    || p.color    || null;
+      }
     }
+
+    // 3) Legacy fallback: b.product was an ObjectId stored as string
+    if ((!category || !color) && b.product) {
+      const p = productMap[String(b.product)];
+      if (p) {
+        category = category || p.category || null;
+        color    = color    || p.color    || null;
+      }
+    }
+
+    // 4) category_browse events carry metadata.category directly
+    if (!category && b.action === 'category_browse' && b.metadata && b.metadata.category) {
+      category = b.metadata.category;
+    }
+
+    if (category) categories[category] = (categories[category] || 0) + weight;
+    if (color)    colors[color]         = (colors[color]         || 0) + weight;
   }
+
   return { categories, colors };
 }
 

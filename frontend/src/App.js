@@ -196,12 +196,14 @@ const AppContent = () => {
       return false;
     }
     const pid = String(product.id || product._id);
+    // Track add_to_cart behavior only — purchase is tracked after order completes
     trackBehavior('add_to_cart', pid, {
       price: product.discounted_price || product.price,
       category: product.category,
       color: product.color
     });
-    recordUserInteraction(product, 'buy');
+    // Also update the local frontend ML state as a click/view (not a purchase)
+    recordUserInteraction(product, 'click');
     setCartItems(prev => {
       const existing = prev.find(i => String(i.id) === pid);
       if (existing) {
