@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ModernProductCard from './product/ModernProductCard';
 import PageHero from './layout/PageHero';
 import { useAuth } from '../contexts/AuthContext';
+import { trackBehavior } from '../utils/mlRecommendationEngine';
 import footwearCatalog from '../data/footwear-catalog.json';
 
 const FootwearPage = ({ 
@@ -21,6 +22,9 @@ const FootwearPage = ({
   const [selectedSeller, setSelectedSeller] = useState('All');
   const [selectedColor, setSelectedColor] = useState('All');
   const [priceRange, setPriceRange] = useState(10000);
+
+  // Debounce timer for search behavior tracking
+  const searchTrackTimer = useRef(null);
 
   const wishlistSet = useMemo(() => new Set((wishlistIds || []).map(id => String(id))), [wishlistIds]);
   const itemsPerPage = 40;
@@ -121,7 +125,18 @@ const FootwearPage = ({
                 type="text"
                 placeholder="Search by footwear name, brand, color, or category..."
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchTerm(val);
+                  setCurrentPage(1);
+                  // Track search behavior after user stops typing (800ms debounce)
+                  if (searchTrackTimer.current) clearTimeout(searchTrackTimer.current);
+                  if (val.trim().length >= 2) {
+                    searchTrackTimer.current = setTimeout(() => {
+                      trackBehavior('search', null, { searchTerm: val.trim(), category: selectedCategory !== 'All' ? selectedCategory : undefined });
+                    }, 800);
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               <span className="absolute left-3 top-3 text-gray-400">🔍</span>
@@ -153,7 +168,11 @@ const FootwearPage = ({
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCurrentPage(1);
+                    if (cat !== 'All') trackBehavior('category_browse', null, { category: cat, type: 'footwear' });
+                  }}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                     selectedCategory === cat
                       ? 'bg-blue-600 text-white shadow-md'
@@ -187,7 +206,13 @@ const FootwearPage = ({
               </label>
               <select
                 value={selectedColor}
-                onChange={(e) => { setSelectedColor(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setSelectedColor(e.target.value);
+                  setCurrentPage(1);
+                  if (e.target.value !== 'All') {
+                    trackBehavior('category_browse', null, { category: selectedCategory !== 'All' ? selectedCategory : undefined, color: e.target.value });
+                  }
+                }}
                 className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700"
               >
                 {colors.map(c => <option key={c} value={c}>{c}</option>)}

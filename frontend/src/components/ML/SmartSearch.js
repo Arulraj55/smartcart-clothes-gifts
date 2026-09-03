@@ -3,13 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import debounce from 'lodash.debounce';
 import { useML } from '../../contexts/MLContext';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   MagnifyingGlassIcon, 
   XMarkIcon,
   ClockIcon,
   SparklesIcon,
-  TrendingUpIcon
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -295,7 +295,7 @@ const SmartSearch = ({
             {trendingSearches.length > 0 && query.length < 2 && (
               <div>
                 <div className="px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50 flex items-center">
-                  <TrendingUpIcon className="h-3 w-3 mr-1" />
+                  <ArrowTrendingUpIcon className="h-3 w-3 mr-1" />
                   Trending Now
                 </div>
                 {trendingSearches.map((search, index) => (
@@ -306,7 +306,7 @@ const SmartSearch = ({
                       index + suggestions.length + recentSearches.length === activeIndex ? 'bg-blue-50' : ''
                     }`}
                   >
-                    <TrendingUpIcon className="h-4 w-4 text-gray-400 mr-3" />
+                    <ArrowTrendingUpIcon className="h-4 w-4 text-gray-400 mr-3" />
                     <span className="truncate">{search}</span>
                     <span className="ml-auto text-xs text-gray-400">trending</span>
                   </button>

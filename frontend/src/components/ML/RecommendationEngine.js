@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useML } from '../../contexts/MLContext';
-import { useAuth } from '../../hooks/useAuth';
-import ProductCard from '../Products/ProductCard';
-import LoadingSpinner from '../UI/LoadingSpinner';
+import { useAuth } from '../../contexts/AuthContext';
+import ModernProductCard from '../product/ModernProductCard';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { SparklesIcon } from '@heroicons/react/24/solid';
+
+// Inline loading spinner — no external dependency needed
+const LoadingSpinner = ({ size = 'md' }) => {
+  const sz = size === 'lg' ? 'h-10 w-10' : 'h-5 w-5';
+  return (
+    <div className={`animate-spin rounded-full border-b-2 border-blue-600 ${sz}`} />
+  );
+};
 
 /**
  * ML-Powered Product Recommendations Component
@@ -71,17 +78,7 @@ const RecommendationEngine = ({
         }
         
         setRecommendations(data || []);
-        
-        // Track recommendation view
-        if (user && data?.length > 0) {
-          trackBehavior('recommendation_view', null, {
-            recommendationType: type,
-            productId: productId,
-            recommendationCount: data.length,
-            recommendationIds: data.map(p => p._id)
-          });
-        }
-        
+
       } catch (err) {
         console.error('Error fetching recommendations:', err);
         setError(err.message);
@@ -94,12 +91,12 @@ const RecommendationEngine = ({
   }, [user, productId, type, maxItems, getRecommendations, trackBehavior]);
 
   const handleProductClick = (product, index) => {
-    // Track recommendation click
+    // Track as a view/click — search_click is the closest meaningful action
     if (user) {
-      trackBehavior('recommendation_click', product._id, {
-        recommendationType: type,
-        clickPosition: index,
-        recommendationScore: product.recommendationScore
+      trackBehavior('view', String(product.id || product._id), {
+        category: product.category,
+        color: product.color,
+        price: product.discounted_price || product.price
       });
     }
   };
@@ -231,9 +228,8 @@ const RecommendationEngine = ({
                 style={{ width: `${100 / itemsPerView}%` }}
               >
                 <div onClick={() => handleProductClick(product, index)}>
-                  <ProductCard
+                  <ModernProductCard
                     product={product}
-                    showMLScore={showMLBadge && product.recommendationScore}
                     compact={true}
                   />
                 </div>

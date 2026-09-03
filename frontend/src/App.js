@@ -1,8 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import './index.css';
 import './theme/tokens.css';
 import AuthProvider, { useAuth } from './contexts/AuthContext';
+import { MLProvider } from './contexts/MLContext';
 import AuthModal from './components/AuthModal';
+import SEO from './components/SEO';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import OrderHistory from './components/OrderHistory';
@@ -18,8 +20,11 @@ import Navbar from './components/layout/Navbar';
 import HeroBanner from './components/home/HeroBanner';
 import CategoryGrid from './components/home/CategoryGrid';
 import ModernProductCard from './components/product/ModernProductCard';
-import { getPersonalizedMLSuggestions } from './utils/mlRecommendationEngine';
-import SEO from './components/SEO';
+import {
+  getPersonalizedMLSuggestions,
+  fetchBackendRecommendations,
+  trackBehavior
+} from './utils/mlRecommendationEngine';
 
 const PAGE_PATHS = {
   home: '/',
@@ -53,6 +58,8 @@ const AppContent = () => {
   const [activeClothingCategory, setActiveClothingCategory] = useState('All');
   const [activeFootwearCategory, setActiveFootwearCategory] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  // Backend recommendations (null = not fetched yet, [] = fetched but empty)
+  const [backendRecs, setBackendRecs] = useState(null);
 
   // User Experience State for ML Recommendation Engine
   const [userExperience, setUserExperience] = useState(() => {
@@ -82,6 +89,15 @@ const AppContent = () => {
 
   const { user, logout, isAuthenticated, loading } = useAuth();
 
+  // Fetch backend recommendations whenever user logs in/out
+  useEffect(() => {
+    if (!loading) {
+      fetchBackendRecommendations(userExperience, 20)
+        .then(recs => setBackendRecs(recs))
+        .catch(() => setBackendRecs(null));
+    }
+  }, [isAuthenticated, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const navigate = useCallback(
     (page, { replace = false, state = {}, skipHistory = false } = {}) => {
       setCurrentPageState(page);
@@ -97,38 +113,45 @@ const AppContent = () => {
     []
   );
 
-  // Record user interaction for ML Recommendation Engine
+  // Record user interaction for ML Recommendation Engine + backend behavior tracking
   const recordUserInteraction = useCallback((product, actionType = 'click') => {
     if (!product) return;
+
+    // Send to backend (fire-and-forget, silent on error)
+    const pid = String(product.id || product._id);
+    if (actionType === 'buy') {
+      trackBehavior('purchase', pid, {
+        price: product.discounted_price || product.price,
+        category: product.category,
+        color: product.color
+      });
+    } else {
+      trackBehavior('view', pid, {
+        category: product.category,
+        color: product.color
+      });
+    }
+
     setUserExperience((prev) => {
-      const clickedProducts = [product, ...prev.clickedProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 40);
-      const boughtProducts = actionType === 'buy' 
-        ? [product, ...prev.boughtProducts.filter(p => String(p.id || p._id) !== String(product.id || product._id))].slice(0, 40)
+      const clickedProducts = [product, ...prev.clickedProducts.filter(p => String(p.id || p._id) !== pid)].slice(0, 40);
+      const boughtProducts = actionType === 'buy'
+        ? [product, ...prev.boughtProducts.filter(p => String(p.id || p._id) !== pid)].slice(0, 40)
         : prev.boughtProducts;
 
       const categoryWeight = actionType === 'buy' ? 4 : 1;
-      const colorWeight = actionType === 'buy' ? 3 : 1;
+      const colorWeight    = actionType === 'buy' ? 3 : 1;
 
       const cat = product.category || 'Apparel';
-      const col = product.color || 'Default';
+      const col = product.color    || 'Default';
 
-      const clickedCategories = {
-        ...prev.clickedCategories,
-        [cat]: (prev.clickedCategories[cat] || 0) + categoryWeight
-      };
-
-      const clickedColors = {
-        ...prev.clickedColors,
-        [col]: (prev.clickedColors[col] || 0) + colorWeight
-      };
+      const clickedCategories = { ...prev.clickedCategories, [cat]: (prev.clickedCategories[cat] || 0) + categoryWeight };
+      const clickedColors     = { ...prev.clickedColors,     [col]: (prev.clickedColors[col]     || 0) + colorWeight    };
 
       const nextExp = { clickedProducts, boughtProducts, clickedCategories, clickedColors };
-      try {
-        window.localStorage.setItem('smartcart:userExperience', JSON.stringify(nextExp));
-      } catch {}
+      try { window.localStorage.setItem('smartcart:userExperience', JSON.stringify(nextExp)); } catch {}
       return nextExp;
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleViewProduct = useCallback((product) => {
     recordUserInteraction(product, 'click');
@@ -158,10 +181,13 @@ const AppContent = () => {
     return [...topClothes, ...topFootwear];
   }, []);
 
-  // ML Personalised Suggestions ("Suggested For You")
+  // ML Personalised Suggestions — use backend result when available, else frontend engine
   const suggestedProducts = useMemo(() => {
+    if (backendRecs && backendRecs.length > 0) return backendRecs;
     return getPersonalizedMLSuggestions(userExperience, 20);
-  }, [userExperience]);
+  }, [backendRecs, userExperience]);
+
+  const isPersonalized = backendRecs !== null && backendRecs.length > 0 && isAuthenticated;
 
   const addToCart = async (product) => {
     if (!isAuthenticated) {
@@ -169,9 +195,14 @@ const AppContent = () => {
       setShowAuthModal(true);
       return false;
     }
+    const pid = String(product.id || product._id);
+    trackBehavior('add_to_cart', pid, {
+      price: product.discounted_price || product.price,
+      category: product.category,
+      color: product.color
+    });
     recordUserInteraction(product, 'buy');
     setCartItems(prev => {
-      const pid = String(product.id || product._id);
       const existing = prev.find(i => String(i.id) === pid);
       if (existing) {
         return prev.map(i => String(i.id) === pid ? { ...i, quantity: i.quantity + 1 } : i);
@@ -209,13 +240,18 @@ const AppContent = () => {
     if (!product) return;
     const pid = String(product.id || product._id);
     setWishlist(prev => {
-      const next = prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid];
-      try {
-        window.localStorage.setItem('smartcart:wishlist', JSON.stringify(next));
-      } catch {}
+      const isAdding = !prev.includes(pid);
+      const next = isAdding ? [...prev, pid] : prev.filter(id => id !== pid);
+      if (isAdding) {
+        trackBehavior('add_to_wishlist', pid, {
+          category: product.category,
+          color: product.color
+        });
+      }
+      try { window.localStorage.setItem('smartcart:wishlist', JSON.stringify(next)); } catch {}
       return next;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateQuantity = (id, newQuantity) => {
     if (newQuantity <= 0) {
@@ -352,11 +388,11 @@ const AppContent = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
-                        ⚡ Enhanced ML Recommendation Engine
+                        ⚡ ML Recommendation Engine
                       </span>
-                      {userExperience.clickedProducts.length > 0 && (
-                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                          Personalized based on your browsing & purchases
+                      {isPersonalized && (
+                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                          ✓ Personalized from your history
                         </span>
                       )}
                     </div>
@@ -365,9 +401,11 @@ const AppContent = () => {
                     </h2>
                   </div>
                   <p className="text-xs text-gray-500 font-medium mt-2 sm:mt-0 max-w-sm">
-                    {userExperience.clickedProducts.length > 0 
-                      ? 'Dynamically ranked based on your clicked & purchased categories, colors and price points.'
-                      : 'Initial top-rated collection (50% Clothes + 50% Footwear). Click or buy items to personalize your feed!'}
+                    {isPersonalized
+                      ? 'Ranked by your purchase & browsing history — categories, colors & price range.'
+                      : userExperience.clickedProducts.length > 0
+                        ? 'Ranked by your local interactions. Sign in to sync across devices.'
+                        : 'Top-rated picks (50% Clothes + 50% Footwear). Interact with products to personalize!'}
                   </p>
                 </div>
 
@@ -526,7 +564,9 @@ const AppContent = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <MLProvider>
+        <AppContent />
+      </MLProvider>
     </AuthProvider>
   );
 }

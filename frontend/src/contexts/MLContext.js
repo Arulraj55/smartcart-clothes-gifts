@@ -1,211 +1,140 @@
 import React, { createContext, useContext, useCallback, useRef } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
 
 const MLContext = createContext();
 
 /**
- * ML Context Provider - Manages all Machine Learning features
- * Handles recommendations, search ranking, and user behavior tracking
+ * ML Context Provider
+ * Handles recommendations, search ranking, and user behavior tracking.
+ *
+ * All behavior tracking is fire-and-forget — ML failures must never crash the UI.
  */
 export const MLProvider = ({ children }) => {
-  const { user } = useAuth();
-  const behaviorQueue = useRef([]);
-  const sessionId = useRef(null);
+  const sessionId = useRef(
+    `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
 
-  // Initialize session
-  React.useEffect(() => {
-    sessionId.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }, []);
-
-  // Batch process behavior tracking
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      if (behaviorQueue.current.length > 0) {
-        processBehaviorQueue();
-      }
-    }, 5000); // Process every 5 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const processBehaviorQueue = async () => {
-    if (behaviorQueue.current.length === 0 || !user) return;
-
-    const behaviors = [...behaviorQueue.current];
-    behaviorQueue.current = [];
+  // ---------------------------------------------------------------------------
+  // trackBehavior — send a single behavior event to the backend immediately.
+  // Only fires when the user is authenticated (token in localStorage).
+  // Silent on any error.
+  // ---------------------------------------------------------------------------
+  const trackBehavior = useCallback(async (action, productId = null, metadata = {}) => {
+    const token = localStorage.getItem('token');
+    if (!token) return; // only track authenticated users
 
     try {
-      await axios.post('/api/analytics/behavior/batch', {
-        behaviors: behaviors.map(behavior => ({
-          ...behavior,
-          sessionId: sessionId.current,
-          timestamp: new Date().toISOString()
-        }))
-      });
-    } catch (error) {
-      console.error('Error processing behavior queue:', error);
-      // Re-add to queue if failed
-      behaviorQueue.current.unshift(...behaviors);
-    }
-  };
-
-  /**
-   * Track user behavior for ML processing
-   */
-  const trackBehavior = useCallback(async (action, productId = null, metadata = {}) => {
-    if (!user) return;
-
-    const behaviorData = {
-      action,
-      productId,
-      metadata: {
-        ...metadata,
-        userAgent: navigator.userAgent,
-        device: getDeviceType(),
-        pageUrl: window.location.href,
-        pageTitle: document.title,
-        timestamp: Date.now()
-      }
-    };
-
-    // Add to queue for batch processing
-    behaviorQueue.current.push(behaviorData);
-
-    // For critical actions, process immediately
-    if (['purchase', 'add_to_cart', 'search'].includes(action)) {
-      try {
-        await axios.post('/api/analytics/behavior', {
-          ...behaviorData,
+      await axios.post(
+        '/api/analytics/behavior',
+        {
+          action,
+          productId: productId ? String(productId) : undefined,
+          metadata: {
+            ...metadata,
+            device: (() => {
+              const w = window.innerWidth;
+              if (w < 768) return 'mobile';
+              if (w < 1024) return 'tablet';
+              return 'desktop';
+            })(),
+            pageUrl: window.location.href
+          },
           sessionId: sessionId.current
-        });
-      } catch (error) {
-        console.error('Error tracking behavior:', error);
-      }
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (_) {
+      // Silent — analytics must never crash the app
     }
-  }, [user]);
+  }, []); // no user dep needed — we check token directly
 
-  /**
-   * Get ML-powered product recommendations
-   */
+  // ---------------------------------------------------------------------------
+  // getRecommendations — fetch personalized or cold-start recommendations.
+  // API returns: { success, recommendations: [...], source }
+  // Falls back to [] on any error.
+  // ---------------------------------------------------------------------------
   const getRecommendations = useCallback(async (type = 'general', options = {}) => {
     try {
       const params = new URLSearchParams({
-        type,
-        limit: options.limit || 10,
-        ...(options.productId && { productId: options.productId }),
-        ...(options.category && { category: options.category }),
-        ...(options.excludeIds && { excludeIds: options.excludeIds.join(',') })
+        limit: options.limit || 10
       });
 
       const response = await axios.get(`/api/recommendations?${params}`);
-      
-      // Track recommendation view
-      if (user && response.data?.length > 0) {
-        trackBehavior('recommendation_view', null, {
-          recommendationType: type,
-          recommendationCount: response.data.length,
-          ...options
-        });
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
+      // Backend returns { success, recommendations: [...] }
+      return response.data?.recommendations || [];
+    } catch (_) {
       return [];
     }
-  }, [user, trackBehavior]);
+  }, []);
 
-  /**
-   * Search products with ML-powered ranking
-   */
+  // ---------------------------------------------------------------------------
+  // searchProducts — ML-ranked search via backend.
+  // API returns: { success, results: [...], total, page, totalPages }
+  // Falls back to { results: [], total: 0 } on error.
+  // ---------------------------------------------------------------------------
   const searchProducts = useCallback(async (query, filters = {}, options = {}) => {
     try {
-      const searchParams = {
+      const params = {
         q: query,
         ...filters,
         page: options.page || 1,
-        limit: options.limit || 20,
-        sortBy: options.sortBy || 'relevance'
+        limit: options.limit || 20
       };
-
-      const response = await axios.get('/api/search', { params: searchParams });
-      
-      // Track search behavior
-      if (user) {
-        trackBehavior('search', null, {
-          searchTerm: query,
-          filters,
-          resultsCount: response.data.total || 0,
-          page: options.page || 1
-        });
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return { products: [], total: 0, suggestions: [] };
+      const response = await axios.get('/api/search', { params });
+      // Backend returns { success, results: [...], total, ... }
+      return response.data || { results: [], total: 0 };
+    } catch (_) {
+      return { results: [], total: 0 };
     }
-  }, [user, trackBehavior]);
+  }, []);
 
-  /**
-   * Get smart search suggestions
-   */
+  // ---------------------------------------------------------------------------
+  // getSearchSuggestions — autocomplete suggestions from backend.
+  // API returns: { success, suggestions: [...] }
+  // Falls back to [] on error.
+  // ---------------------------------------------------------------------------
   const getSearchSuggestions = useCallback(async (query) => {
     if (!query || query.length < 2) return [];
-
     try {
       const response = await axios.get('/api/search/suggestions', {
         params: { q: query }
       });
-      return response.data || [];
-    } catch (error) {
-      console.error('Error fetching search suggestions:', error);
+      // Backend returns { success, suggestions: [...] }
+      return response.data?.suggestions || [];
+    } catch (_) {
       return [];
     }
   }, []);
 
-  /**
-   * Get trending searches
-   */
+  // ---------------------------------------------------------------------------
+  // getTrendingSearches — not yet a dedicated backend endpoint.
+  // Returns empty array gracefully so SmartSearch doesn't break.
+  // ---------------------------------------------------------------------------
   const getTrendingSearches = useCallback(async () => {
-    try {
-      const response = await axios.get('/api/search/trending');
-      return response.data || [];
-    } catch (error) {
-      console.error('Error fetching trending searches:', error);
-      return [];
-    }
+    return [];
   }, []);
 
-  /**
-   * Track product view with engagement metrics
-   */
-  const trackProductView = useCallback(async (productId, metadata = {}) => {
+  // ---------------------------------------------------------------------------
+  // trackProductView — track a product view event.
+  // Returns a cleanup fn that can be called on unmount to record time spent.
+  // ---------------------------------------------------------------------------
+  const trackProductView = useCallback((productId, metadata = {}) => {
     const startTime = Date.now();
-    
-    trackBehavior('view', productId, {
-      ...metadata,
-      viewStartTime: startTime
-    });
+    trackBehavior('view', productId, metadata);
 
-    // Return a function to track view end
     return () => {
-      const endTime = Date.now();
-      const timeSpent = Math.round((endTime - startTime) / 1000); // seconds
-      
-      trackBehavior('view_end', productId, {
-        ...metadata,
-        timeSpent,
-        engagementLevel: getEngagementLevel(timeSpent)
-      });
+      const timeSpent = Math.round((Date.now() - startTime) / 1000);
+      if (timeSpent >= 3) {
+        // Only record meaningful dwell — ignore accidental hovers
+        trackBehavior('view', productId, { ...metadata, timeSpent });
+      }
     };
   }, [trackBehavior]);
 
-  /**
-   * Track search click with position
-   */
-  const trackSearchClick = useCallback(async (productId, searchQuery, position, metadata = {}) => {
+  // ---------------------------------------------------------------------------
+  // trackSearchClick — track when a user clicks a search result.
+  // ---------------------------------------------------------------------------
+  const trackSearchClick = useCallback((productId, searchQuery, position, metadata = {}) => {
     trackBehavior('search_click', productId, {
       searchTerm: searchQuery,
       clickPosition: position,
@@ -213,117 +142,30 @@ export const MLProvider = ({ children }) => {
     });
   }, [trackBehavior]);
 
-  /**
-   * Track filter usage
-   */
-  const trackFilterUsage = useCallback(async (filters, searchQuery = null) => {
-    trackBehavior('filter_apply', null, {
-      filters,
-      searchTerm: searchQuery,
-      filterCount: Object.keys(filters).length
-    });
+  // ---------------------------------------------------------------------------
+  // trackFilterUsage — track filter application (category_browse).
+  // ---------------------------------------------------------------------------
+  const trackFilterUsage = useCallback((filters, searchQuery = null) => {
+    if (filters.category) {
+      trackBehavior('category_browse', null, {
+        category: filters.category,
+        searchTerm: searchQuery,
+        filterCount: Object.keys(filters).length
+      });
+    }
   }, [trackBehavior]);
 
-  /**
-   * Get personalized product sorting
-   */
-  const getPersonalizedSort = useCallback(async (products, context = {}) => {
-    if (!user || !products.length) return products;
-
-    try {
-      const response = await axios.post('/api/recommendations/sort', {
-        productIds: products.map(p => p._id),
-        context
-      });
-
-      // Merge with original products while maintaining ML scores
-      const sortedProducts = response.data.map(item => {
-        const originalProduct = products.find(p => p._id === item.productId);
-        return {
-          ...originalProduct,
-          mlScore: item.score,
-          mlRank: item.rank
-        };
-      });
-
-      return sortedProducts;
-    } catch (error) {
-      console.error('Error getting personalized sort:', error);
-      return products;
-    }
-  }, [user]);
-
-  /**
-   * Get ML insights for analytics dashboard
-   */
-  const getMLInsights = useCallback(async () => {
-    if (!user) return null;
-
-    try {
-      const response = await axios.get('/api/analytics/ml-insights');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching ML insights:', error);
-      return null;
-    }
-  }, [user]);
-
-  /**
-   * Preload recommendations for better UX
-   */
-  const preloadRecommendations = useCallback(async (types = ['general', 'trending']) => {
-    const promises = types.map(type => 
-      getRecommendations(type, { limit: 6 })
-    );
-
-    try {
-      const results = await Promise.all(promises);
-      return Object.fromEntries(
-        types.map((type, index) => [type, results[index]])
-      );
-    } catch (error) {
-      console.error('Error preloading recommendations:', error);
-      return {};
-    }
-  }, [getRecommendations]);
-
-  // Helper functions
-  const getDeviceType = () => {
-    const width = window.innerWidth;
-    if (width < 768) return 'mobile';
-    if (width < 1024) return 'tablet';
-    return 'desktop';
-  };
-
-  const getEngagementLevel = (timeSpent) => {
-    if (timeSpent < 5) return 'low';
-    if (timeSpent < 30) return 'medium';
-    if (timeSpent < 120) return 'high';
-    return 'very_high';
-  };
-
-  // Context value
   const value = {
-    // Core ML functions
     trackBehavior,
     getRecommendations,
     searchProducts,
     getSearchSuggestions,
     getTrendingSearches,
-    
-    // Specialized tracking
     trackProductView,
     trackSearchClick,
     trackFilterUsage,
-    
-    // Advanced features
-    getPersonalizedSort,
-    getMLInsights,
-    preloadRecommendations,
-    
-    // Utilities
     sessionId: sessionId.current,
-    isMLEnabled: !!user
+    isMLEnabled: Boolean(localStorage.getItem('token'))
   };
 
   return (
@@ -333,9 +175,6 @@ export const MLProvider = ({ children }) => {
   );
 };
 
-/**
- * Hook to use ML context
- */
 export const useML = () => {
   const context = useContext(MLContext);
   if (!context) {
